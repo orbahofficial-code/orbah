@@ -348,384 +348,371 @@
   <!-- Toast -->
   <div class="toast" id="toast"></div>
 
-  <script>
-    // ===== CONFIG =====
-    const API_BASE = "https://script.google.com/macros/s/AKfycbzK9QDRUSEq5U18Pwa40TWA-f4NrGx1CR2xqtnHBRgMQ3kSP1LfaJDMZPRc4evwuww-/exec"; // TODO เปลี่ยนเป็นของคุณ
-    const ROLE_TABS = {
-      'admin':          ['overview','profile','work','security','activity'],
-      'hospital-staff': ['overview','profile','work','activity'],
-      'external':       ['overview','profile','work'],
-      'or-staff':       ['overview','scan','activity'] // << OR Staff เห็นแท็บเฉพาะ
-    };
-    
-    // ===== Helpers =====
-    const $  = (sel, root=document) => root.querySelector(sel);
-    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+<script>
+  // ===== CONFIG =====
+  const API_BASE = "https://script.google.com/macros/s/AKfycbzK9QDRUSEq5U18Pwa40TWA-f4NrGx1CR2xqtnHBRgMQ3kSP1LfaJDMZPRc4evwuww-/exec";
+  const ROLE_TABS = {
+    'admin':          ['overview','profile','work','security','activity'],
+    'hospital-staff': ['overview','profile','work','activity'],
+    'external':       ['overview','profile','work'],
+    'or-staff':       ['overview','scan','activity'] // เฉพาะ OR staff
+  };
 
-    const Toast = {
-      show(msg, type='info', timeout=3000){
-        const wrap = $('#toast');
-        const item = document.createElement('div');
-        item.className = 'toast-item';
-        item.innerHTML = `
-          <div><i class="fa-solid ${type==='success'?'fa-circle-check':type==='error'?'fa-circle-xmark':'fa-circle-info'} mt-1"></i></div>
-          <div class="text-sm leading-snug">${msg}</div>`;
-        wrap.appendChild(item);
-        setTimeout(()=>{ item.style.opacity='0'; item.style.transform='translateY(-6px)'; }, timeout-350);
-        setTimeout(()=> item.remove(), timeout);
+  // ===== Helpers =====
+  const $  = (sel, root=document) => root.querySelector(sel);
+  const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+  const Toast = {
+    show(msg, type='info', timeout=3000){
+      const wrap = $('#toast');
+      const item = document.createElement('div');
+      item.className = 'toast-item';
+      item.innerHTML = `
+        <div><i class="fa-solid ${type==='success'?'fa-circle-check':type==='error'?'fa-circle-xmark':'fa-circle-info'} mt-1"></i></div>
+        <div class="text-sm leading-snug">${msg}</div>`;
+      wrap.appendChild(item);
+      setTimeout(()=>{ item.style.opacity='0'; item.style.transform='translateY(-6px)'; }, timeout-350);
+      setTimeout(()=> item.remove(), timeout);
+    }
+  };
+
+  function openModal(id){ const el = document.getElementById(id); if(el) el.classList.add('show'); }
+  function closeModal(id){ const el = document.getElementById(id); if(el) el.classList.remove('show'); }
+
+  function bindData(data){
+    // แสดงข้อมูลลง [data-bind]
+    $$('[data-bind]').forEach(el=>{
+      const key = el.getAttribute('data-bind');
+      if(key==='avatar'){
+        el.src = data.avatar_url || 'https://placehold.co/240x240/png?text=PROFILE';
+      }else if(key==='workplaceOrCompany'){
+        el.textContent = data.workplace || data.company || '-';
+      }else{
+        el.textContent = data[key] ?? '';
       }
-    };
+    });
 
-    function openModal(id){ const el = document.getElementById(id); if(el) el.classList.add('show'); }
-    function closeModal(id){ const el = document.getElementById(id); if(el) el.classList.remove('show'); }
+    // เติมฟอร์มแก้ไข
+    const form = $('#editForm');
+    if(form){
+      form.first_name.value = data.first_name || '';
+      form.last_name.value  = data.last_name || '';
+      form.position.value   = data.position || '';
+      form.workplace.value  = data.workplace || data.company || '';
+      form.email.value      = data.email || '';
+      form.phone.value      = data.phone || '';
+    }
+  }
 
-    function bindData(data){
-      // แสดงข้อมูลลง [data-bind]
-      $$('[data-bind]').forEach(el=>{
-        const key = el.getAttribute('data-bind');
-        if(key==='avatar'){
-          el.src = data.avatar_url || 'https://placehold.co/240x240/png?text=PROFILE';
-        }else if(key==='workplaceOrCompany'){
-          el.textContent = data.workplace || data.company || '-';
-        }else{
-          el.textContent = data[key] ?? '';
-        }
+  function fileToBase64(file){
+    return new Promise((resolve, reject)=>{
+      const fr = new FileReader();
+      fr.onload = () => {
+        const base64 = String(fr.result).split(',')[1] || '';
+        resolve({ base64, mimeType: file.type || 'image/png', filename: file.name || 'avatar.png' });
+      };
+      fr.onerror = reject;
+      fr.readAsDataURL(file);
+    });
+  }
+
+  function ensureAuth(){
+    const token = localStorage.getItem('auth_token');
+    const username = localStorage.getItem('username');
+    if(!token || !username){
+      window.location.href = 'index.html';
+      return null;
+    }
+    return { token, username };
+  }
+
+  async function apiPost(route, payload){
+    const res = await fetch(`${API_BASE}?route=${route}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // ลด preflight
+      body: JSON.stringify(payload||{})
+    });
+    const data = await res.json().catch(()=> ({}));
+    if(!res.ok) throw new Error(data?.message || 'API error');
+    return data;
+  }
+
+  function setActiveTab(tab){
+    $$('.sidebar-item').forEach(a=>{
+      a.classList.toggle('active', a.getAttribute('data-tab')===tab);
+    });
+    $$('[data-pane]').forEach(p=>{
+      p.style.display = (p.getAttribute('data-pane')===tab || (tab==='overview' && p.getAttribute('data-pane')==='overview')) ? '' : 'none';
+    });
+  }
+
+  function buildQrPayload(profile){
+    // ใช้ qr_id ที่ได้จาก API (ถาวร)
+    return JSON.stringify({ q: profile.qr_id });
+  }
+
+  function drawQR(canvas, text){
+    const qr = new QRious({
+      element: canvas,
+      size: 200,
+      value: text,
+      level: 'M'
+    });
+    return qr;
+  }
+
+  function dataUrlFromCanvas(canvas){
+    try{ return canvas.toDataURL('image/png'); }catch(e){ return ''; }
+  }
+
+  // ===== App =====
+  document.addEventListener('DOMContentLoaded', async () => {
+    // Tabs
+    $$('.sidebar-item').forEach(a => {
+      a.addEventListener('click', e => {
+        e.preventDefault();
+        const tab = a.getAttribute('data-tab');
+        if (tab) setActiveTab(tab);
       });
+    });
 
-      // เติมฟอร์มแก้ไข
-      const form = $('#editForm');
-      if(form){
-        form.first_name.value = data.first_name || '';
-        form.last_name.value  = data.last_name || '';
-        form.position.value   = data.position || '';
-        form.workplace.value  = data.workplace || data.company || '';
-        form.email.value      = data.email || '';
-        form.phone.value      = data.phone || '';
-      }
-    }
-
-    function fileToBase64(file){
-      return new Promise((resolve, reject)=>{
-        const fr = new FileReader();
-        fr.onload = () => {
-          const base64 = String(fr.result).split(',')[1] || '';
-          resolve({ base64, mimeType: file.type || 'image/png', filename: file.name || 'avatar.png' });
-        };
-        fr.onerror = reject;
-        fr.readAsDataURL(file);
-      });
-    }
-
-    function ensureAuth(){
-      const token = localStorage.getItem('auth_token');
-      const username = localStorage.getItem('username');
-      if(!token || !username){
-        window.location.href = 'index.html';
-        return null;
-      }
-      return { token, username };
-    }
-
-    async function apiPost(route, payload){
-      const res = await fetch(`${API_BASE}?route=${route}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // ลด preflight
-        body: JSON.stringify(payload||{})
-      });
-      const data = await res.json().catch(()=> ({}));
-      if(!res.ok) throw new Error(data?.message || 'API error');
-      return data;
-    }
-
-    function setActiveTab(tab){
-      $$('.sidebar-item').forEach(a=>{
-        a.classList.toggle('active', a.getAttribute('data-tab')===tab);
-      });
-      $$('[data-pane]').forEach(p=>{
-        p.style.display = (p.getAttribute('data-pane')===tab || (tab==='overview' && p.getAttribute('data-pane')==='overview')) ? '' : 'none';
-      });
-    }
-
-    function buildQrPayload(profile){
-      // ใช้ qr_id ที่ได้จาก API (ถาวร)
-      return JSON.stringify({ q: profile.qr_id });
-    }
-
-    function drawQR(canvas, text){
-      const qr = new QRious({
-        element: canvas,
-        size: 200,
-        value: text,
-        level: 'M'
-      });
-      return qr;
-    }
-
-    function dataUrlFromCanvas(canvas){
-      try{ return canvas.toDataURL('image/png'); }catch(e){ return ''; }
-    }
-
-    // ===== App =====
-    document.addEventListener('DOMContentLoaded', async () => {
-      // Tabs (safe)
-      $$('.sidebar-item').forEach(a => {
-        a.addEventListener('click', e => {
-          e.preventDefault();
-          const tab = a.getAttribute('data-tab');
-          if (tab) setActiveTab(tab);
-        });
-      });
-    
-      // Logout (safe)
-      $('#btnLogout')?.addEventListener('click', () => {
+    // Logout
+    const logoutBtn = document.getElementById('btnLogout');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
         ['auth_token','userRole','username','fullname','last_work_id'].forEach(k => localStorage.removeItem(k));
         window.location.href = 'index.html';
       });
-    
-      // ต้องมี token/username ถึงไปต่อ
-      const auth = ensureAuth();
-      if (!auth) return;
-    
-      try {
-        // โหลดโปรไฟล์จากเซิร์ฟเวอร์
-        const res = await apiPost('get_profile', { username: auth.username });
-    
-        if (!res?.ok || !res.data) {
-          Toast.show(res?.message || 'โหลดโปรไฟล์ไม่สำเร็จ', 'error');
-          setTimeout(() => (window.location.href = 'index.html'), 1200);
-          return;
-        }
-    
-        const profile = res.data;
-    
-        // ใส่ข้อมูลลง UI + เก็บ state ไว้ใช้ต่อ
-        bindData(profile);
-        window.currentProfile = profile;
-    
-        // เก็บค่าที่ใช้บ่อย
-        if (profile.fullname) localStorage.setItem('fullname', profile.fullname);
-        if (profile.role)     localStorage.setItem('userRole', profile.role);
-    
-        // ตั้งค่า UI ตามบทบาท (ถ้ามีฟังก์ชัน), ถ้าไม่มีก็ไป overview
-        if (typeof configureRoleUI === 'function') {
-          configureRoleUI(profile.role || localStorage.getItem('userRole') || 'external');
-        } else {
-          setActiveTab('overview');
-        }
-      } catch (err) {
-        console.error(err);
-        Toast.show('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
-      }
-    });
-
-
-      // อัปโหลดรูปโปรไฟล์
-      $('#avatarInput').addEventListener('change', async (e)=>{
-        const file = e.target.files?.[0];
-        if(!file) return;
-        if(!file.type.startsWith('image/')){ Toast.show('กรุณาเลือกไฟล์รูปภาพ','error'); return; }
-
-        try{
-          const payload = await fileToBase64(file);
-          const res = await apiPost('upload_avatar', {
-            username: localStorage.getItem('username'),
-            file: payload
-          });
-          if(res?.ok){
-            // รีเฟรชรูป
-            $$('img[data-bind="avatar"]').forEach(img=> img.src = res.url);
-            Toast.show('อัปโหลดรูปโปรไฟล์สำเร็จ','success');
-          }else{
-            Toast.show(res?.message || 'อัปโหลดไม่สำเร็จ','error');
-          }
-        }catch(err){
-          console.error(err);
-          Toast.show('อัปโหลดไม่สำเร็จ','error');
-        }finally{
-          e.target.value = '';
-        }
-      });
-
-      // แสดง QR
-      $('#btnShowQR').addEventListener('click', () => {
-        const usernameEl = $('[data-bind="username"]');
-        const fullnameEl = $('[data-bind="fullname"]');
-        const roleEl     = $('[data-bind="role"]');
-      
-        const data = {
-          username: usernameEl ? usernameEl.textContent.trim() : '',
-          fullname: fullnameEl ? fullnameEl.textContent.trim() : '',
-          role:     roleEl     ? roleEl.textContent.trim()     : ''
-          // ถ้าใช้แบบถาวร ให้เพิ่ม qr_id มาด้วย แล้วแก้ buildQrPayload() ให้ใช้ qr_id
-        };
-      
-        const payload = buildQrPayload(data); // ใช้ฟังก์ชันเดิม
-        openModal('qrModal');
-        const canvas = $('#qrCanvas');
-        if (canvas) {
-          drawQR(canvas, payload);
-          const url = canvas.toDataURL('image/png');
-          const dl  = $('#btnDownloadQR');
-          if (dl) dl.href = url || '#';
-        }
-      });
-
-
-      // ปิด QR
-      $('[data-close="qrModal"]').addEventListener('click', ()=> closeModal('qrModal'));
-      $('#btnPrintQR').addEventListener('click', ()=>{
-        const w = window.open('');
-        const dataUrl = dataUrlFromCanvas($('#qrCanvas'));
-        w.document.write(`<img src="${dataUrl}" style="width:300px;height:300px;">`);
-        w.print();
-        w.close();
-      });
-
-      // เซฟโปรไฟล์
-      $('#btnSave').addEventListener('click', async (e)=>{
-        e.preventDefault();
-        const f = $('#editForm');
-        const body = {
-          username: localStorage.getItem('username'),
-          first_name: f.first_name.value.trim(),
-          last_name:  f.last_name.value.trim(),
-          position:   f.position.value.trim(),
-          workplace:  f.workplace.value.trim(),
-          email:      f.email.value.trim(),
-          phone:      f.phone.value.trim()
-        };
-        try{
-          const res = await apiPost('update_profile', body);
-          if(res?.ok){
-            Toast.show('บันทึกข้อมูลสำเร็จ','success');
-            // รีเฟรชข้อมูลบนหน้า
-            const data = res.data || body;
-            data.fullname = data.first_name + ' ' + data.last_name;
-            bindData(data);
-          }else{
-            Toast.show(res?.message || 'บันทึกไม่สำเร็จ','error');
-          }
-        }catch(err){
-          console.error(err);
-          Toast.show('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
-        }
-      });
-
-      // ยกเลิก -> รีโหลดข้อมูลจากเซิร์ฟเวอร์
-      $('#btnReset').addEventListener('click', async ()=>{
-        try{
-          const prof = await apiPost('get_profile', { username: localStorage.getItem('username') });
-          if(prof?.ok){ bindData(prof.data || {}); }
-        }catch(e){}
-      });
-
-      // เริ่มต้นที่ overview
-      setActiveTab('overview');
-    });
-
-
-    // -- helper: สร้าง payload สำหรับงานรอบนี้ (คนสแกนจะได้ work_id ไปยืนยัน)
-    function buildWorkQrPayload(work_id){
-      return JSON.stringify({ w: work_id });
     }
-    
-    // เปิด/ปิดโมดัลกรอกงาน
-    $('#btnWorkCheckin').addEventListener('click', ()=> openModal('workModal'));
-    $('[data-close="workModal"]').addEventListener('click', ()=> closeModal('workModal'));
-    
-    // บันทึกข้อมูลงาน + แสดง QR
-    $('#btnWorkSubmit').addEventListener('click', async (e)=>{
-      e.preventDefault();
-      const f = $('#workForm');
-      const task = f.task.value.trim();
-      const room = f.room.value.trim();
-      if(!task || !room){ Toast.show('กรุณากรอกข้อมูลให้ครบ','error'); return; }
-    
-      try{
-        const username = localStorage.getItem('username');
-        const res = await apiPost('work_init', { username, task, room });
-        if(res?.ok){
-          closeModal('workModal');
-          // วาด QR สำหรับ work_id รอบนี้
-          const title = $('#qrTitle'); if(title) title.textContent = 'QR Check-in';
-          openModal('qrModal');
-          drawQR($('#qrCanvas'), buildWorkQrPayload(res.work_id));
-          const url = $('#qrCanvas').toDataURL('image/png');
-          const dl  = $('#btnDownloadQR'); if (dl) dl.href = url || '#';
-          Toast.show('สร้าง QR Check-in แล้ว','success');
-        }else{
-          Toast.show(res?.message || 'ไม่สามารถสร้างรายการปฏิบัติงานได้','error');
-        }
-      }catch(err){
-        console.error(err);
-        Toast.show('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
+
+    // ต้องมี token/username ถึงไปต่อ
+    const auth = ensureAuth();
+    if (!auth) return;
+
+    try {
+      // โหลดโปรไฟล์
+      const res = await apiPost('get_profile', { username: auth.username });
+
+      if (!res?.ok || !res.data) {
+        Toast.show(res?.message || 'โหลดโปรไฟล์ไม่สำเร็จ','error');
+        setTimeout(() => (window.location.href = 'index.html'), 1200);
+        return;
       }
-    });
 
-    //***ฟังก์ชันตั้งค่า UI ตามบทบาท***//
-    function configureRoleUI(role){
-  const allowed = ROLE_TABS[role] || ['overview'];
+      const profile = res.data;
+      bindData(profile);
+      window.currentProfile = profile;
 
-  // ซ่อนเมนูที่ไม่ได้รับอนุญาต
-  $$('.sidebar-item').forEach(a=>{
-    const tab = a.getAttribute('data-tab');
-    const show = allowed.includes(tab);
-    a.style.display = show ? '' : 'none';
+      if (profile.fullname) localStorage.setItem('fullname', profile.fullname);
+      if (profile.role)     localStorage.setItem('userRole', profile.role);
+
+      if (typeof configureRoleUI === 'function') {
+        configureRoleUI(profile.role || localStorage.getItem('userRole') || 'external');
+      } else {
+        setActiveTab('overview');
+      }
+    } catch (err) {
+      console.error(err);
+      Toast.show('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
+    }
   });
 
-  // ซ่อน pane ที่ไม่ได้รับอนุญาต
-  $$('[data-pane]').forEach(p=>{
-    const tab = p.getAttribute('data-pane');
-    p.style.display = allowed.includes(tab) ? '' : 'none';
+  // อัปโหลดรูปโปรไฟล์
+  $('#avatarInput')?.addEventListener('change', async (e)=>{
+    const file = e.target.files?.[0];
+    if(!file) return;
+    if(!file.type.startsWith('image/')){ Toast.show('กรุณาเลือกไฟล์รูปภาพ','error'); return; }
+
+    try{
+      const payload = await fileToBase64(file);
+      const res = await apiPost('upload_avatar', {
+        username: localStorage.getItem('username'),
+        file: payload
+      });
+      if(res?.ok){
+        // รีเฟรชรูป
+        $$('img[data-bind="avatar"]').forEach(img=> img.src = res.url);
+        Toast.show('อัปโหลดรูปโปรไฟล์สำเร็จ','success');
+      }else{
+        Toast.show(res?.message || 'อัปโหลดไม่สำเร็จ','error');
+      }
+    }catch(err){
+      console.error(err);
+      Toast.show('อัปโหลดไม่สำเร็จ','error');
+    }finally{
+      e.target.value = '';
+    }
   });
 
-  // ถ้า role นี้คือ or-staff ให้ซ่อนปุ่มทำงานฝั่งผู้ใช้ทั่วไป (ถ้าเผลอแสดงอยู่)
-  if (role === 'or-staff') {
-    const workPane = document.querySelector('[data-pane="work"]');
-    if (workPane) workPane.style.display = 'none';
+  // แสดง QR (ใช้ qr_id จาก currentProfile)
+  $('#btnShowQR')?.addEventListener('click', () => {
+    const qrId = (window.currentProfile && window.currentProfile.qr_id) || '';
+    const payload = buildQrPayload({ qr_id: qrId });
+    openModal('qrModal');
+    const canvas = $('#qrCanvas');
+    if (canvas) {
+      drawQR(canvas, payload);
+      const url = canvas.toDataURL('image/png');
+      const dl  = $('#btnDownloadQR'); if (dl) dl.href = url || '#';
+    }
+  });
+
+  // ปิด/พิมพ์ QR
+  $('[data-close="qrModal"]')?.addEventListener('click', ()=> closeModal('qrModal'));
+  $('#btnPrintQR')?.addEventListener('click', ()=>{
+    const w = window.open('');
+    const dataUrl = dataUrlFromCanvas($('#qrCanvas'));
+    w.document.write(`<img src="${dataUrl}" style="width:300px;height:300px;">`);
+    w.print();
+    w.close();
+  });
+
+  // เซฟโปรไฟล์
+  $('#btnSave')?.addEventListener('click', async (e)=>{
+    e.preventDefault();
+    const f = $('#editForm');
+    if(!f) return;
+    const body = {
+      username: localStorage.getItem('username'),
+      first_name: f.first_name.value.trim(),
+      last_name:  f.last_name.value.trim(),
+      position:   f.position.value.trim(),
+      workplace:  f.workplace.value.trim(),
+      email:      f.email.value.trim(),
+      phone:      f.phone.value.trim()
+    };
+    try{
+      const res = await apiPost('update_profile', body);
+      if(res?.ok){
+        Toast.show('บันทึกข้อมูลสำเร็จ','success');
+        // รีเฟรชข้อมูลบนหน้า
+        const data = res.data || body;
+        data.fullname = (data.first_name||'') + ' ' + (data.last_name||'');
+        bindData(data);
+        // อัปเดต currentProfile ด้วย
+        window.currentProfile = { ...(window.currentProfile||{}), ...data };
+      }else{
+        Toast.show(res?.message || 'บันทึกไม่สำเร็จ','error');
+      }
+    }catch(err){
+      console.error(err);
+      Toast.show('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
+    }
+  });
+
+  // ยกเลิก -> รีโหลดข้อมูลจากเซิร์ฟเวอร์
+  $('#btnReset')?.addEventListener('click', async ()=>{
+    try{
+      const prof = await apiPost('get_profile', { username: localStorage.getItem('username') });
+      if(prof?.ok){
+        bindData(prof.data || {});
+        window.currentProfile = prof.data || {};
+      }
+    }catch(e){}
+  });
+
+  // -- helper: สร้าง payload สำหรับงานรอบนี้ (คนสแกนจะได้ work_id ไปยืนยัน)
+  function buildWorkQrPayload(work_id){
+    return JSON.stringify({ w: work_id });
   }
 
-  // ตั้งแท็บเริ่มต้นเป็นตัวแรกที่อนุญาต
-  const firstTab = allowed[0] || 'overview';
-  setActiveTab(firstTab);
-}
+  // เปิด/ปิดโมดัลกรอกงาน
+  $('#btnWorkCheckin')?.addEventListener('click', ()=> openModal('workModal'));
+  $('[data-close="workModal"]')?.addEventListener('click', ()=> closeModal('workModal'));
+
+  // บันทึกข้อมูลงาน + แสดง QR
+  $('#btnWorkSubmit')?.addEventListener('click', async (e)=>{
+    e.preventDefault();
+    const f = $('#workForm');
+    if(!f) return;
+    const task = f.task.value.trim();
+    const room = f.room.value.trim();
+    if(!task || !room){ Toast.show('กรุณากรอกข้อมูลให้ครบ','error'); return; }
+
+    try{
+      const username = localStorage.getItem('username');
+      const res = await apiPost('work_init', { username, task, room });
+      if(res?.ok){
+        closeModal('workModal');
+        // วาด QR สำหรับ work_id รอบนี้
+        const title = $('#qrTitle'); if(title) title.textContent = 'QR Check-in';
+        openModal('qrModal');
+        drawQR($('#qrCanvas'), buildWorkQrPayload(res.work_id));
+        const url = $('#qrCanvas').toDataURL('image/png');
+        const dl  = $('#btnDownloadQR'); if (dl) dl.href = url || '#';
+        Toast.show('สร้าง QR Check-in แล้ว','success');
+      }else{
+        Toast.show(res?.message || 'ไม่สามารถสร้างรายการปฏิบัติงานได้','error');
+      }
+    }catch(err){
+      console.error(err);
+      Toast.show('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
+    }
+  });
+
+  // ===== ฟังก์ชันตั้งค่า UI ตามบทบาท =====
+  function configureRoleUI(role){
+    const allowed = ROLE_TABS[role] || ['overview'];
+
+    // ซ่อนเมนูที่ไม่ได้รับอนุญาต
+    $$('.sidebar-item').forEach(a=>{
+      const tab = a.getAttribute('data-tab');
+      const show = allowed.includes(tab);
+      a.style.display = show ? '' : 'none';
+    });
+
+    // ซ่อน pane ที่ไม่ได้รับอนุญาต
+    $$('[data-pane]').forEach(p=>{
+      const tab = p.getAttribute('data-pane');
+      p.style.display = allowed.includes(tab) ? '' : 'none';
+    });
+
+    // ถ้า role นี้คือ or-staff ให้ซ่อน pane work (กันซ้ำ)
+    if (role === 'or-staff') {
+      const workPane = document.querySelector('[data-pane="work"]');
+      if (workPane) workPane.style.display = 'none';
+    }
+
+    // ตั้งแท็บเริ่มต้นเป็นตัวแรกที่อนุญาต
+    const firstTab = allowed[0] || 'overview';
+    setActiveTab(firstTab);
+  }
 
   // OR staff: ยืนยันจากโค้ดที่สแกนได้
-$('#btnScanConfirm')?.addEventListener('click', async ()=>{
-  const raw = $('#scanPayload')?.value.trim();
-  if(!raw){ Toast.show('กรุณาวางโค้ดที่อ่านจาก QR','error'); return; }
+  $('#btnScanConfirm')?.addEventListener('click', async ()=>{
+    const raw = $('#scanPayload')?.value.trim();
+    if(!raw){ Toast.show('กรุณาวางโค้ดที่อ่านจาก QR','error'); return; }
 
-  let obj = null;
-  try{ obj = JSON.parse(raw); }catch(e){ Toast.show('รูปแบบไม่ถูกต้อง (ต้องเป็น JSON)','error'); return; }
-  if(!obj.w){ Toast.show('ไม่พบ work_id ในโค้ด','error'); return; }
+    let obj = null;
+    try{ obj = JSON.parse(raw); }catch(e){ Toast.show('รูปแบบไม่ถูกต้อง (ต้องเป็น JSON)','error'); return; }
+    if(!obj.w){ Toast.show('ไม่พบ work_id ในโค้ด','error'); return; }
 
-  const action = (obj.a || 'in').toLowerCase(); // 'in' หรือ 'out'
-  const route = action === 'out' ? 'work_checkout' : 'work_confirm';
+    const action = (obj.a || 'in').toLowerCase(); // 'in' หรือ 'out'
+    const route = action === 'out' ? 'work_checkout' : 'work_confirm';
 
-  try{
-    const checker_username = localStorage.getItem('username') || '';
-    const checker_name = localStorage.getItem('fullname') || checker_username;
-    const res = await apiPost(route, {
-      work_id: obj.w,
-      checker_username,
-      checker_name
-    });
-    if(res?.ok){
-      Toast.show(action==='out' ? 'เช็คเอาต์สำเร็จ' : 'เช็คอินสำเร็จ', 'success');
-      $('#scanPayload').value = '';
-    }else{
-      Toast.show(res?.message || 'ดำเนินการไม่สำเร็จ','error');
+    try{
+      const checker_username = localStorage.getItem('username') || '';
+      const checker_name = localStorage.getItem('fullname') || checker_username;
+      const res = await apiPost(route, {
+        work_id: obj.w,
+        checker_username,
+        checker_name
+      });
+      if(res?.ok){
+        Toast.show(action==='out' ? 'เช็คเอาต์สำเร็จ' : 'เช็คอินสำเร็จ', 'success');
+        const ta = $('#scanPayload'); if(ta) ta.value = '';
+      }else{
+        Toast.show(res?.message || 'ดำเนินการไม่สำเร็จ','error');
+      }
+    }catch(err){
+      console.error(err);
+      Toast.show('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
     }
-  }catch(err){
-    console.error(err);
-    Toast.show('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
-  }
-});
+  });
 
-// ปุ่มล้างฟิลด์
-$('#btnScanClear')?.addEventListener('click', ()=> { const t=$('#scanPayload'); if(t) t.value=''; });
+  // ปุ่มล้างฟิลด์
+  $('#btnScanClear')?.addEventListener('click', ()=> { const t=$('#scanPayload'); if(t) t.value=''; });
+</script>
 
-
-  </script>
 </body>
 </html>
