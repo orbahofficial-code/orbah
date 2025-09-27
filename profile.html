@@ -74,7 +74,7 @@
           <a href="#" class="sidebar-item block px-3 py-2 rounded-lg" data-tab="profile"><i class="fa-solid fa-id-card mr-2"></i> ข้อมูลส่วนตัว</a>
           <a href="#" class="sidebar-item block px-3 py-2 rounded-lg" data-tab="security"><i class="fa-solid fa-shield-keyhole mr-2"></i> ความปลอดภัย</a>
           <a href="#" class="sidebar-item block px-3 py-2 rounded-lg" data-tab="work"><i class="fa-solid fa-briefcase mr-2"></i> ปฏิบัติงาน</a>
-
+          <a href="#" class="sidebar-item block px-3 py-2 rounded-lg" data-tab="scan"> <i class="fa-solid fa-qrcode mr-2"></i> สแกน/ยืนยัน</a>
           <a href="#" class="sidebar-item block px-3 py-2 rounded-lg" data-tab="activity"><i class="fa-solid fa-clock-rotate-left mr-2"></i> กิจกรรมล่าสุด</a>
         </nav>
         <div class="mt-6 p-3 rounded-lg bg-indigo-50 text-indigo-700 text-xs">
@@ -244,6 +244,39 @@
           </div>
         </div>
 
+        <!-- Scan & Confirm (OR staff only) -->
+        <div class="card bg-white p-6" data-pane="scan" style="display:none;">
+          <h3 class="text-base font-semibold text-gray-800 mb-4">สแกน/ยืนยันการปฏิบัติงาน</h3>
+        
+          <!-- แบบง่าย: วาง payload ที่ได้จากการสแกน (กล้องจะใส่ภายหลังได้) -->
+          <div class="space-y-2 mb-4">
+            <label class="text-sm text-gray-600">โค้ดที่อ่านได้จาก QR</label>
+            <textarea id="scanPayload" class="w-full border rounded-lg px-3 py-2" rows="4"
+                      placeholder='เช่น {"w":"<work_id>","a":"in|out"}'></textarea>
+            <p class="text-xs text-gray-500">หมายเหตุ: "a" = in (เช็คอิน) หรือ out (เช็คเอาต์)</p>
+          </div>
+        
+          <div class="flex items-center gap-2">
+            <button id="btnScanConfirm" class="px-3 py-2 pill bg-indigo-600 text-white hover:bg-indigo-700">
+              ยืนยันจากโค้ด
+            </button>
+            <button id="btnScanClear" class="px-3 py-2 pill border hover:bg-gray-50">
+              ล้างข้อมูล
+            </button>
+          </div>
+        
+          <hr class="my-6">
+        
+          <div class="text-sm text-gray-600">
+            <p class="mb-1 font-medium">วิธีใช้งาน (ชั่วคราว):</p>
+            <ol class="list-decimal pl-5 space-y-1">
+              <li>ให้ผู้ปฏิบัติงานกด “เข้าปฏิบัติงาน” ที่หน้าของเขา เพื่อสร้าง QR</li>
+              <li>เจ้าหน้าที่ห้องผ่าตัดสแกน QR และคัดลอกข้อความ (หรือเชื่อมกล้องภายหลัง)</li>
+              <li>วางลงในช่องด้านบน แล้วกด “ยืนยันจากโค้ด”</li>
+            </ol>
+          </div>
+        </div>
+
 
         <!-- Activity placeholder -->
         <div class="card bg-white p-6" data-pane="activity" style="display:none;">
@@ -318,7 +351,13 @@
   <script>
     // ===== CONFIG =====
     const API_BASE = "https://script.google.com/macros/s/AKfycbzK9QDRUSEq5U18Pwa40TWA-f4NrGx1CR2xqtnHBRgMQ3kSP1LfaJDMZPRc4evwuww-/exec"; // TODO เปลี่ยนเป็นของคุณ
-
+    const ROLE_TABS = {
+      'admin':          ['overview','profile','work','security','activity'],
+      'hospital-staff': ['overview','profile','work','activity'],
+      'external':       ['overview','profile','work'],
+      'or-staff':       ['overview','scan','activity'] // << OR Staff เห็นแท็บเฉพาะ
+    };
+    
     // ===== Helpers =====
     const $  = (sel, root=document) => root.querySelector(sel);
     const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
@@ -427,41 +466,58 @@
     }
 
     // ===== App =====
-    document.addEventListener('DOMContentLoaded', async ()=>{
-      // Tabs
-      $$('.sidebar-item').forEach(a=>{
-        a.addEventListener('click', (e)=> {
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Tabs (safe)
+      $$('.sidebar-item').forEach(a => {
+        a.addEventListener('click', e => {
           e.preventDefault();
-          setActiveTab(a.getAttribute('data-tab'));
+          const tab = a.getAttribute('data-tab');
+          if (tab) setActiveTab(tab);
         });
       });
-
-      // Logout
-      $('#btnLogout').addEventListener('click', ()=>{
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('userRole');
-        localStorage.removeItem('username');
-        localStorage.removeItem('fullname');
+    
+      // Logout (safe)
+      $('#btnLogout')?.addEventListener('click', () => {
+        ['auth_token','userRole','username','fullname','last_work_id'].forEach(k => localStorage.removeItem(k));
         window.location.href = 'index.html';
       });
-
+    
+      // ต้องมี token/username ถึงไปต่อ
       const auth = ensureAuth();
-      if(!auth) return;
-
-      try{
-        // โหลดโปรไฟล์
-        const prof = await apiPost('get_profile', { username: auth.username });
-        if(prof?.ok){
-          bindData(prof.data || {});
-          // เก็บชื่อเต็มไว้ใช้ส่วนอื่น
-          if(prof.data?.fullname) localStorage.setItem('fullname', prof.data.fullname);
-        }else{
-          Toast.show(prof?.message || 'โหลดโปรไฟล์ไม่สำเร็จ','error');
+      if (!auth) return;
+    
+      try {
+        // โหลดโปรไฟล์จากเซิร์ฟเวอร์
+        const res = await apiPost('get_profile', { username: auth.username });
+    
+        if (!res?.ok || !res.data) {
+          Toast.show(res?.message || 'โหลดโปรไฟล์ไม่สำเร็จ', 'error');
+          setTimeout(() => (window.location.href = 'index.html'), 1200);
+          return;
         }
-      }catch(err){
+    
+        const profile = res.data;
+    
+        // ใส่ข้อมูลลง UI + เก็บ state ไว้ใช้ต่อ
+        bindData(profile);
+        window.currentProfile = profile;
+    
+        // เก็บค่าที่ใช้บ่อย
+        if (profile.fullname) localStorage.setItem('fullname', profile.fullname);
+        if (profile.role)     localStorage.setItem('userRole', profile.role);
+    
+        // ตั้งค่า UI ตามบทบาท (ถ้ามีฟังก์ชัน), ถ้าไม่มีก็ไป overview
+        if (typeof configureRoleUI === 'function') {
+          configureRoleUI(profile.role || localStorage.getItem('userRole') || 'external');
+        } else {
+          setActiveTab('overview');
+        }
+      } catch (err) {
         console.error(err);
         Toast.show('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
       }
+    });
+
 
       // อัปโหลดรูปโปรไฟล์
       $('#avatarInput').addEventListener('change', async (e)=>{
@@ -605,6 +661,70 @@
         Toast.show('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
       }
     });
+
+    //***ฟังก์ชันตั้งค่า UI ตามบทบาท***//
+    function configureRoleUI(role){
+  const allowed = ROLE_TABS[role] || ['overview'];
+
+  // ซ่อนเมนูที่ไม่ได้รับอนุญาต
+  $$('.sidebar-item').forEach(a=>{
+    const tab = a.getAttribute('data-tab');
+    const show = allowed.includes(tab);
+    a.style.display = show ? '' : 'none';
+  });
+
+  // ซ่อน pane ที่ไม่ได้รับอนุญาต
+  $$('[data-pane]').forEach(p=>{
+    const tab = p.getAttribute('data-pane');
+    p.style.display = allowed.includes(tab) ? '' : 'none';
+  });
+
+  // ถ้า role นี้คือ or-staff ให้ซ่อนปุ่มทำงานฝั่งผู้ใช้ทั่วไป (ถ้าเผลอแสดงอยู่)
+  if (role === 'or-staff') {
+    const workPane = document.querySelector('[data-pane="work"]');
+    if (workPane) workPane.style.display = 'none';
+  }
+
+  // ตั้งแท็บเริ่มต้นเป็นตัวแรกที่อนุญาต
+  const firstTab = allowed[0] || 'overview';
+  setActiveTab(firstTab);
+}
+
+  // OR staff: ยืนยันจากโค้ดที่สแกนได้
+$('#btnScanConfirm')?.addEventListener('click', async ()=>{
+  const raw = $('#scanPayload')?.value.trim();
+  if(!raw){ Toast.show('กรุณาวางโค้ดที่อ่านจาก QR','error'); return; }
+
+  let obj = null;
+  try{ obj = JSON.parse(raw); }catch(e){ Toast.show('รูปแบบไม่ถูกต้อง (ต้องเป็น JSON)','error'); return; }
+  if(!obj.w){ Toast.show('ไม่พบ work_id ในโค้ด','error'); return; }
+
+  const action = (obj.a || 'in').toLowerCase(); // 'in' หรือ 'out'
+  const route = action === 'out' ? 'work_checkout' : 'work_confirm';
+
+  try{
+    const checker_username = localStorage.getItem('username') || '';
+    const checker_name = localStorage.getItem('fullname') || checker_username;
+    const res = await apiPost(route, {
+      work_id: obj.w,
+      checker_username,
+      checker_name
+    });
+    if(res?.ok){
+      Toast.show(action==='out' ? 'เช็คเอาต์สำเร็จ' : 'เช็คอินสำเร็จ', 'success');
+      $('#scanPayload').value = '';
+    }else{
+      Toast.show(res?.message || 'ดำเนินการไม่สำเร็จ','error');
+    }
+  }catch(err){
+    console.error(err);
+    Toast.show('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
+  }
+});
+
+// ปุ่มล้างฟิลด์
+$('#btnScanClear')?.addEventListener('click', ()=> { const t=$('#scanPayload'); if(t) t.value=''; });
+
 
   </script>
 </body>
