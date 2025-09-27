@@ -13,6 +13,8 @@
 
   <!-- QR code (เบาและเสถียร) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  <!-- Fallback QR decoder -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
@@ -263,6 +265,27 @@
             <button id="btnScanClear" class="px-3 py-2 pill border hover:bg-gray-50">
               ล้างข้อมูล
             </button>
+            <!-- Camera scanner -->
+          <div class="mt-4">
+            <button id="btnOpenCamera" class="px-3 py-2 pill bg-emerald-600 text-white hover:bg-emerald-700">
+              <i class="fa-solid fa-camera mr-1"></i> เปิดกล้องสแกน QR
+            </button>
+          </div>
+          
+          <div id="scannerWrap" class="mt-4 hidden">
+            <div class="relative rounded-xl border overflow-hidden bg-black">
+              <video id="scanVideo" class="w-full h-64 object-cover" autoplay playsinline muted></video>
+              <!-- overlay กรอบสแกน -->
+              <div class="absolute inset-0 pointer-events-none ring-2 ring-white/80 rounded-lg m-8"></div>
+            </div>
+            <div class="flex items-center gap-2 pt-3">
+              <button id="btnStopCamera" class="px-3 py-2 pill border hover:bg-gray-50">หยุดกล้อง</button>
+              <span id="scanStatus" class="text-xs text-gray-500">กด “เปิดกล้องสแกน QR” เพื่อเริ่ม</span>
+            </div>
+            <!-- ใช้สำหรับอ่านภาพเฟรม (ไม่ต้องแสดง) -->
+            <canvas id="scanCanvas" width="640" height="480" class="hidden"></canvas>
+          </div>
+
           </div>
         
           <hr class="my-6">
@@ -712,6 +735,119 @@
 
   // ปุ่มล้างฟิลด์
   $('#btnScanClear')?.addEventListener('click', ()=> { const t=$('#scanPayload'); if(t) t.value=''; });
+
+  // ====== SCANNER (Camera) ======
+let scanStream = null;
+let scanLoopId = null;
+const hasBarcodeDetector = ('BarcodeDetector' in window);
+
+let detector = null;
+if (hasBarcodeDetector && window.BarcodeDetector?.getSupportedFormats) {
+  try { detector = new BarcodeDetector({ formats: ['qr_code'] }); } catch(e) {}
+}
+
+async function startScanner(){
+  const wrap = $('#scannerWrap'); wrap?.classList.remove('hidden');
+  const video = $('#scanVideo'); const canvas = $('#scanCanvas'); const status = $('#scanStatus');
+  try{
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error('เบราว์เซอร์ไม่รองรับ getUserMedia');
+    }
+    scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' } }, audio: false
+    });
+    video.srcObject = scanStream;
+    await video.play();
+    status.textContent = 'กำลังสแกน...';
+
+    if (detector) {
+      const step = async () => {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          try {
+            const codes = await detector.detect(video);
+            if (codes && codes.length) return onQrDetected(codes[0].rawValue);
+          } catch(e){}
+        }
+        scanLoopId = requestAnimationFrame(step);
+      };
+      scanLoopId = requestAnimationFrame(step);
+    } else {
+      // fallback: jsQR
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const step = () => {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          canvas.width = video.videoWidth || 640;
+          canvas.height = video.videoHeight || 480;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = window.jsQR && jsQR(imageData.data, imageData.width, imageData.height);
+          if (code && code.data) return onQrDetected(code.data);
+        }
+        scanLoopId = requestAnimationFrame(step);
+      };
+      scanLoopId = requestAnimationFrame(step);
+    }
+  }catch(err){
+    console.error(err);
+    status.textContent = 'เปิดกล้องไม่สำเร็จ';
+    Toast.show('เปิดกล้องไม่ได้ (ต้องใช้ผ่าน HTTPS และอนุญาตสิทธิ์กล้อง)', 'error');
+  }
+}
+
+function stopScanner(){
+  if (scanLoopId) { cancelAnimationFrame(scanLoopId); scanLoopId = null; }
+  if (scanStream){
+    scanStream.getTracks().forEach(t => t.stop());
+    scanStream = null;
+  }
+  $('#scanStatus')?.textContent = 'หยุดกล้องแล้ว';
+  $('#scannerWrap')?.classList.add('hidden');
+}
+
+// เมื่อสแกนได้
+function onQrDetected(text){
+  stopScanner();
+  Toast.show('อ่าน QR สำเร็จ', 'success');
+
+  // ใส่ลงกล่องข้อความให้เห็น
+  const ta = $('#scanPayload'); if (ta) ta.value = text;
+
+  // พยายามยืนยันให้อัตโนมัติ
+  let obj = null;
+  try { obj = JSON.parse(text); } catch(e) {}
+  if (!obj || !obj.w) { Toast.show('QR นี้ไม่ใช่รูปแบบที่ระบบรองรับ','error'); return; }
+
+  const action = (obj.a || 'in').toLowerCase();
+  const route = (action === 'out') ? 'work_checkout' : 'work_confirm';
+  const checker_username = localStorage.getItem('username') || '';
+  const checker_name = localStorage.getItem('fullname') || checker_username;
+
+  apiPost(route, { work_id: obj.w, checker_username, checker_name })
+    .then(res => {
+      if(res?.ok){
+        Toast.show(action==='out' ? 'เช็คเอาต์สำเร็จ' : 'เช็คอินสำเร็จ', 'success');
+        if (ta) ta.value = '';
+      }else{
+        Toast.show(res?.message || 'ดำเนินการไม่สำเร็จ', 'error');
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      Toast.show('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
+    });
+}
+  
+// เปิด/หยุดกล้อง
+$('#btnOpenCamera')?.addEventListener('click', startScanner);
+$('#btnStopCamera')?.addEventListener('click', stopScanner);
+
+// ปิดกล้องอัตโนมัติเมื่อสลับออกจากแท็บสแกน
+const _origSetActiveTab = setActiveTab;
+setActiveTab = function(tab){
+  _origSetActiveTab(tab);
+  if (tab !== 'scan') stopScanner();
+};
+
 </script>
 
 </body>
