@@ -460,14 +460,60 @@
     return data;
   }
 
-  function setActiveTab(tab){
-    $$(".sidebar-item").forEach(a=>{
-      a.classList.toggle("active", a.getAttribute("data-tab")===tab);
-    });
-    $$("[data-pane]").forEach(p=>{
-      p.style.display = (p.getAttribute("data-pane")===tab || (tab==="overview" && p.getAttribute("data-pane")==="overview")) ? "" : "none";
-    });
+function setActiveTab(tab) {
+  const panes = Array.from(document.querySelectorAll('[data-pane]'));
+  const items = Array.from(document.querySelectorAll('.sidebar-item'));
+
+  // แท็บปัจจุบัน (ถ้ามี)
+  const current =
+    document.querySelector('.sidebar-item.active')?.getAttribute('data-tab') ||
+    panes.find(p => p.style.display !== 'none')?.getAttribute('data-pane') ||
+    'overview';
+
+  // ถ้าไม่มีแท็บนี้ ให้ fallback เป็น overview
+  const allowedTabs = new Set(panes.map(p => p.getAttribute('data-pane')));
+  if (!allowedTabs.has(tab)) tab = 'overview';
+
+  // ถ้าออกจากแท็บ scan ให้ปิดกล้อง
+  if (typeof stopScanner === 'function' && current === 'scan' && tab !== 'scan') {
+    try { stopScanner(); } catch (e) {}
   }
+
+  // อัปเดตเมนูด้านซ้าย
+  items.forEach(a => {
+    const isActive = a.getAttribute('data-tab') === tab;
+    a.classList.toggle('active', isActive);
+    a.setAttribute('aria-current', isActive ? 'page' : 'false');
+  });
+
+  // แสดง/ซ่อน pane
+  panes.forEach(p => {
+    const isTarget =
+      p.getAttribute('data-pane') === tab ||
+      (tab === 'overview' && p.getAttribute('data-pane') === 'overview');
+    p.style.display = isTarget ? '' : 'none';
+  });
+
+  // อัปเดต hash (ช่วย refresh แล้วยังอยู่แท็บเดิม)
+  try {
+    history.replaceState(null, '', '#' + tab);
+  } catch (e) {
+    location.hash = '#' + tab;
+  }
+
+  // โฟกัสองค์ประกอบแรกในแท็บเพื่อการเข้าถึง
+  const paneSel = `[data-pane="${tab}"]`;
+  const firstFocusable = document.querySelector(
+    `${paneSel} a, ${paneSel} button, ${paneSel} input, ${paneSel} select, ${paneSel} textarea, ${paneSel} [tabindex="0"]`
+  );
+  if (firstFocusable) {
+    try { firstFocusable.focus({ preventScroll: true }); } catch (e) {}
+  }
+
+  // แจ้ง event เผื่อส่วนอื่นต้องรู้ว่าแท็บเปลี่ยน
+  document.dispatchEvent(new CustomEvent('tabchange', { detail: { tab, prev: current } }));
+}
+
 
   function buildQrPayload(profile){
     // ใช้ qr_id ที่ได้จาก API (ถาวร)
