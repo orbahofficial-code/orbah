@@ -728,12 +728,6 @@
     }
   }
 
-  function stopScanner(){
-    if (scanLoopId) { cancelAnimationFrame(scanLoopId); scanLoopId = null; }
-    if (scanStream){ scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
-    $('#scanStatus')?.textContent = 'หยุดกล้องแล้ว';
-    $('#scannerWrap')?.classList.add('hidden');
-  }
 
   // เมื่อสแกนได้
   function onQrDetected(text){
