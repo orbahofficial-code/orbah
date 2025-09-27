@@ -727,6 +727,51 @@
       Toast.show('เปิดกล้องไม่ได้ (ต้องใช้ผ่าน HTTPS และอนุญาตสิทธิ์กล้อง)', 'error');
     }
   }
+// ต้องมีตัวแปร global เหล่านี้ไว้ก่อนประกาศฟังก์ชัน
+// let scanStream = null;
+// let scanLoopId = null;
+
+function stopScanner(){
+  // 1) หยุด animation loop อย่างปลอดภัย
+  try {
+    if (typeof scanLoopId !== 'undefined' && scanLoopId) {
+      cancelAnimationFrame(scanLoopId);
+      scanLoopId = null;
+    }
+  } catch (_) {}
+
+  // 2) หยุดกล้องจาก <video> โดยตรง (เผื่อมีการผูก srcObject ที่นี่)
+  try {
+    const video = document.getElementById('scanVideo');
+    if (video) {
+      try { typeof video.pause === 'function' && video.pause(); } catch (_) {}
+      const vStream = video.srcObject;
+      if (vStream && typeof vStream.getTracks === 'function') {
+        vStream.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+      }
+      video.srcObject = null;
+    }
+  } catch (_) {}
+
+  // 3) หยุดกล้องจากตัวแปร scanStream (กันกรณีถือ reference แยกต่างหาก)
+  try {
+    if (scanStream && typeof scanStream.getTracks === 'function') {
+      scanStream.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+    }
+  } catch (_) {}
+  finally {
+    // เคลียร์เสมอ
+    scanStream = null;
+  }
+
+  // 4) อัปเดต UI แบบไม่ใช้ optional chaining (กัน browser เก่า)
+  try {
+    var statusEl = document.getElementById('scanStatus');
+    if (statusEl) statusEl.textContent = 'หยุดกล้องแล้ว';
+    var wrap = document.getElementById('scannerWrap');
+    if (wrap && !wrap.classList.contains('hidden')) wrap.classList.add('hidden');
+  } catch (_) {}
+}
 
 
   // เมื่อสแกนได้
