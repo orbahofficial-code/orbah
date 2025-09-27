@@ -73,11 +73,13 @@
           <a href="#" class="sidebar-item active block px-3 py-2 rounded-lg" data-tab="overview"><i class="fa-solid fa-user mr-2"></i> Overview</a>
           <a href="#" class="sidebar-item block px-3 py-2 rounded-lg" data-tab="profile"><i class="fa-solid fa-id-card mr-2"></i> ข้อมูลส่วนตัว</a>
           <a href="#" class="sidebar-item block px-3 py-2 rounded-lg" data-tab="security"><i class="fa-solid fa-shield-keyhole mr-2"></i> ความปลอดภัย</a>
+          <a href="#" class="sidebar-item block px-3 py-2 rounded-lg" data-tab="work"><i class="fa-solid fa-briefcase mr-2"></i> ปฏิบัติงาน</a>
+
           <a href="#" class="sidebar-item block px-3 py-2 rounded-lg" data-tab="activity"><i class="fa-solid fa-clock-rotate-left mr-2"></i> กิจกรรมล่าสุด</a>
         </nav>
         <div class="mt-6 p-3 rounded-lg bg-indigo-50 text-indigo-700 text-xs">
           <i class="fa-solid fa-circle-info mr-1"></i>
-          ข้อมูลถูกซิงค์จาก Google Sheet
+          พบปัญหาติดต่อแอดมิน
         </div>
       </aside>
 
@@ -201,17 +203,17 @@
           </form>
         </div>
 
-        <!-- Security -->
+        <!-- ความมปลอดภัย -->
         <div class="card bg-white p-6" data-pane="security" style="display:none;">
           <h3 class="text-base font-semibold text-gray-800 mb-4">ความปลอดภัย</h3>
           <div class="grid md:grid-cols-2 gap-4">
             <div class="p-4 border rounded-xl">
               <div class="flex items-center justify-between">
                 <div>
-                  <div class="font-medium text-gray-800">เปลี่ยนรหัสผ่าน</div>
-                  <div class="text-xs text-gray-500">ตั้งรหัสผ่านใหม่เพื่อความปลอดภัย</div>
+                  <div class="font-medium text-gray-800">Check-in</div>
+                  <div class="text-xs text-gray-500">กรอกข้อมูลเข้าปฏิบัติงาน</div>
                 </div>
-                <button class="px-3 py-1.5 pill border text-sm hover:bg-gray-50" id="btnChangePwd" disabled>เร็วๆ นี้</button>
+                <button class="px-3 py-1.5 pill border text-sm hover:bg-gray-50" id="btnChangePwd" disabled>กด</button>
               </div>
             </div>
             <div class="p-4 border rounded-xl">
@@ -225,6 +227,23 @@
             </div>
           </div>
         </div>
+
+        <!-- Work (Check-in) -->
+        <div class="card bg-white p-6" data-pane="work" style="display:none;">
+          <h3 class="text-base font-semibold text-gray-800 mb-4">ปฏิบัติงาน</h3>
+          <div class="p-4 border rounded-xl">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="font-medium text-gray-800">Check-in</div>
+                <div class="text-xs text-gray-500">กรอกข้อมูลเข้าปฏิบัติงาน แล้วแสดง QR ให้เจ้าหน้าที่สแกน</div>
+              </div>
+              <button id="btnWorkCheckin" class="px-3 py-1.5 pill border text-sm hover:bg-gray-50">
+                กรอกข้อมูล
+              </button>
+            </div>
+          </div>
+        </div>
+
 
         <!-- Activity placeholder -->
         <div class="card bg-white p-6" data-pane="activity" style="display:none;">
@@ -241,7 +260,7 @@
 <div class="modal" id="qrModal">
   <div class="modal-card p-6">
     <div class="flex items-center justify-between mb-3">
-      <h4 class="text-lg font-semibold">QR Code ของฉัน</h4>
+      <h4 class="text-lg font-semibold" id="qrTitle">QR Code ของฉัน</h4>
       <button class="text-gray-500 hover:text-gray-700" data-close="qrModal">
         <i class="fa-solid fa-xmark"></i>
       </button>
@@ -261,6 +280,34 @@
         <i class="fa-solid fa-print mr-2"></i> พิมพ์
       </button>
     </div>
+  </div>
+</div>
+
+  <!-- Work Check-in Modal -->
+<div class="modal" id="workModal">
+  <div class="modal-card p-6">
+    <div class="flex items-center justify-between mb-3">
+      <h4 class="text-lg font-semibold">เข้าปฏิบัติงาน</h4>
+      <button class="text-gray-500 hover:text-gray-700" data-close="workModal">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <form id="workForm" class="grid gap-4">
+      <div>
+        <label class="text-sm text-gray-600">งาน/ภารกิจ</label>
+        <input name="task" class="w-full border rounded-lg px-3 py-2" placeholder="เช่น ดูแลเครื่องมือ / เข้าช่วยผ่าตัด" required>
+      </div>
+      <div>
+        <label class="text-sm text-gray-600">ห้องที่ไปปฏิบัติงาน</label>
+        <input name="room" class="w-full border rounded-lg px-3 py-2" placeholder="เช่น OR-3 / ห้องผ่าตัด 2" required>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button type="button" class="px-3 py-2 pill border" data-close="workModal">ยกเลิก</button>
+        <button id="btnWorkSubmit" class="px-3 py-2 pill bg-indigo-600 text-white hover:bg-indigo-700">
+          บันทึก & แสดง QR
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -519,6 +566,46 @@
       // เริ่มต้นที่ overview
       setActiveTab('overview');
     });
+
+
+    // -- helper: สร้าง payload สำหรับงานรอบนี้ (คนสแกนจะได้ work_id ไปยืนยัน)
+    function buildWorkQrPayload(work_id){
+      return JSON.stringify({ w: work_id });
+    }
+    
+    // เปิด/ปิดโมดัลกรอกงาน
+    $('#btnWorkCheckin').addEventListener('click', ()=> openModal('workModal'));
+    $('[data-close="workModal"]').addEventListener('click', ()=> closeModal('workModal'));
+    
+    // บันทึกข้อมูลงาน + แสดง QR
+    $('#btnWorkSubmit').addEventListener('click', async (e)=>{
+      e.preventDefault();
+      const f = $('#workForm');
+      const task = f.task.value.trim();
+      const room = f.room.value.trim();
+      if(!task || !room){ Toast.show('กรุณากรอกข้อมูลให้ครบ','error'); return; }
+    
+      try{
+        const username = localStorage.getItem('username');
+        const res = await apiPost('work_init', { username, task, room });
+        if(res?.ok){
+          closeModal('workModal');
+          // วาด QR สำหรับ work_id รอบนี้
+          const title = $('#qrTitle'); if(title) title.textContent = 'QR Check-in';
+          openModal('qrModal');
+          drawQR($('#qrCanvas'), buildWorkQrPayload(res.work_id));
+          const url = $('#qrCanvas').toDataURL('image/png');
+          const dl  = $('#btnDownloadQR'); if (dl) dl.href = url || '#';
+          Toast.show('สร้าง QR Check-in แล้ว','success');
+        }else{
+          Toast.show(res?.message || 'ไม่สามารถสร้างรายการปฏิบัติงานได้','error');
+        }
+      }catch(err){
+        console.error(err);
+        Toast.show('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
+      }
+    });
+
   </script>
 </body>
 </html>
