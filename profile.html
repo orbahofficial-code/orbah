@@ -353,6 +353,34 @@
     </div>
   </div>
 
+  <!-- Scan Preview Modal -->
+<div class="modal" id="scanPreviewModal">
+  <div class="modal-card p-6">
+    <div class="flex items-center justify-between mb-3">
+      <h4 class="text-lg font-semibold">ยืนยันการปฏิบัติงาน</h4>
+      <button class="text-gray-500 hover:text-gray-700" data-close="scanPreviewModal">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div id="scanPreviewBody" class="space-y-3 text-sm">
+      <!-- ข้อมูลจะถูกใส่ด้วย JS -->
+      <div class="grid gap-2">
+        <div><span class="text-gray-500">ชื่อ-นามสกุล:</span> <span id="pvFullname" class="font-medium"></span></div>
+        <div><span class="text-gray-500">บริษัท/หน่วยงาน:</span> <span id="pvCompany" class="font-medium"></span></div>
+        <div><span class="text-gray-500">งาน/ภารกิจ:</span> <span id="pvTask" class="font-medium"></span></div>
+        <div><span class="text-gray-500">สถานที่ปฏิบัติงาน:</span> <span id="pvRoom" class="font-medium"></span></div>
+        <div id="pvNote" class="text-xs text-gray-500"></div>
+      </div>
+    </div>
+
+    <div class="flex gap-2 justify-end pt-4" id="scanPreviewActions">
+      <!-- ปุ่มจะถูกใส่/สลับโดย JS -->
+    </div>
+  </div>
+</div>
+
+
   <!-- Toast -->
   <div class="toast" id="toast"></div>
 
@@ -774,26 +802,185 @@ function stopScanner(){
 }
 
 
-  // เมื่อสแกนได้
-  function onQrDetected(text){
-    stopScanner();
-    Toast.show('อ่าน QR สำเร็จ', 'success');
+// เก็บสถานะการสแกนล่าสุด
+let __scanContext = { raw: null, work_id: null, qr_id: null, mode: 'in' }; 
+// mode: 'in' = ยังไม่ได้เช็คอิน, ให้แสดงปุ่ม Check in | 'out' = เช็คอินแล้ว, ให้แสดงปุ่ม Check out
 
-    const ta = $('#scanPayload'); if (ta) ta.value = text;
+// วาดข้อมูลลง modal
+function fillScanPreviewUI(pv){
+  document.getElementById('pvFullname').textContent = pv.fullname || '-';
+  document.getElementById('pvCompany').textContent  = pv.company || pv.workplace || '-';
+  document.getElementById('pvTask').textContent     = pv.task || '-';
+  document.getElementById('pvRoom').textContent     = pv.room || '-';
 
-    let obj = null;
-    try { obj = JSON.parse(text); } catch(e) {}
-    if (!obj || !obj.w) { Toast.show('QR นี้ไม่ใช่รูปแบบที่ระบบรองรับ','error'); return; }
+  const note = document.getElementById('pvNote');
+  if (pv.status_text) {
+    note.textContent = pv.status_text;
+    note.style.display = '';
+  } else {
+    note.style.display = 'none';
+  }
 
-    const action = (obj.a || 'in').toLowerCase();
-    const route = (action === 'out') ? 'work_checkout' : 'work_confirm';
+  // ปุ่ม
+  const act = document.getElementById('scanPreviewActions');
+  act.innerHTML = '';
+  if (__scanContext.mode === 'in') {
+    // ปุ่มเขียว Check in
+    const btnIn = document.createElement('button');
+    btnIn.className = 'px-4 py-2 pill bg-emerald-600 text-white hover:bg-emerald-700';
+    btnIn.innerHTML = '<i class="fa-solid fa-right-to-bracket mr-1"></i> Check in';
+    btnIn.addEventListener('click', handleConfirmCheckIn);
+    act.appendChild(btnIn);
+  } else {
+    // ปุ่มแดง Check out
+    const btnOut = document.createElement('button');
+    btnOut.className = 'px-4 py-2 pill bg-rose-600 text-white hover:bg-rose-700';
+    btnOut.innerHTML = '<i class="fa-solid fa-right-from-bracket mr-1"></i> Check out';
+    btnOut.addEventListener('click', handleConfirmCheckOut);
+    act.appendChild(btnOut);
+  }
+
+  openModal('scanPreviewModal');
+}
+
+// เรียก check-in
+async function handleConfirmCheckIn(){
+  try{
     const checker_username = localStorage.getItem('username') || '';
     const checker_name = localStorage.getItem('fullname') || checker_username;
 
-    apiPost(route, { work_id: obj.w, checker_username, checker_name })
-      .then(res => { Toast.show(action==='out' ? 'เช็คเอาต์สำเร็จ' : 'เช็คอินสำเร็จ', 'success'); if (ta) ta.value = ''; })
-      .catch(err => { console.error(err); Toast.show(err.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error'); });
+    // ถ้ามี work_id ใช้ work_confirm เลย
+    if (__scanContext.work_id) {
+      await apiPost('work_confirm', { work_id: __scanContext.work_id, checker_username, checker_name });
+      Toast.show('เช็คอินสำเร็จ','success');
+      closeModal('scanPreviewModal');
+      return;
+    }
+
+    // ถ้ามาจาก QR ส่วนตัว (qr_id) ให้ backend เปิดงานล่าสุด/สร้างงานตามนโยบายที่ตั้งไว้
+    if (__scanContext.qr_id) {
+      // แนะนำให้มี route ฝั่งหลังบ้านชื่อ scan_confirm_in ที่รับ qr_id
+      const r = await apiPost('scan_confirm_in', { qr_id: __scanContext.qr_id, checker_username, checker_name });
+      if (r?.ok) {
+        Toast.show('เช็คอินสำเร็จ','success');
+        closeModal('scanPreviewModal');
+      } else {
+        throw new Error(r?.message || 'เช็คอินไม่สำเร็จ');
+      }
+      return;
+    }
+
+    throw new Error('ไม่มีข้อมูลงาน/QR ที่จะเช็คอิน');
+  }catch(err){
+    console.error(err);
+    Toast.show(err.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
   }
+}
+
+// เรียก check-out
+async function handleConfirmCheckOut(){
+  try{
+    const checker_username = localStorage.getItem('username') || '';
+    const checker_name = localStorage.getItem('fullname') || checker_username;
+
+    // ถ้ามี work_id ใช้ work_checkout
+    if (__scanContext.work_id) {
+      await apiPost('work_checkout', { work_id: __scanContext.work_id, checker_username, checker_name });
+      Toast.show('เช็คเอาต์สำเร็จ','success');
+      closeModal('scanPreviewModal');
+      return;
+    }
+
+    // มาจาก QR ส่วนตัว
+    if (__scanContext.qr_id) {
+      // ฝั่งหลังบ้านรองรับ route ชื่อ scan_confirm_out
+      const r = await apiPost('scan_confirm_out', { qr_id: __scanContext.qr_id, checker_username, checker_name });
+      if (r?.ok) {
+        Toast.show('เช็คเอาต์สำเร็จ','success');
+        closeModal('scanPreviewModal');
+      } else {
+        throw new Error(r?.message || 'เช็คเอาต์ไม่สำเร็จ');
+      }
+      return;
+    }
+
+    throw new Error('ไม่มีข้อมูลงาน/QR ที่จะเช็คเอาต์');
+  }catch(err){
+    console.error(err);
+    Toast.show(err.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
+  }
+}
+
+  
+  // เมื่อสแกนได้
+async function onQrDetected(text){
+  stopScanner();
+  const ta = $('#scanPayload'); if (ta) ta.value = text;
+  Toast.show('อ่าน QR สำเร็จ', 'success');
+
+  let obj = null;
+  try { obj = JSON.parse(text); } catch(e) { obj = null; }
+
+  if (!obj || (!obj.w && !obj.q)) {
+    Toast.show('QR นี้ไม่ใช่รูปแบบที่ระบบรองรับ','error');
+    return;
+  }
+
+  // เคลียร์ context
+  __scanContext = { raw: text, work_id: obj.w || null, qr_id: obj.q || null, mode: 'in' };
+
+  // 1) พยายามขอพรีวิวจาก backend (เส้นทางแนะนำ)
+  try {
+    const pv = await apiPost('scan_preview', { work_id: obj.w, qr_id: obj.q });
+    if (pv?.ok) {
+      __scanContext.mode = pv.mode === 'out' ? 'out' : 'in';
+      fillScanPreviewUI({
+        fullname: pv.profile?.fullname || '-',
+        company: pv.profile?.company || pv.profile?.workplace || '-',
+        task: pv.work?.task || '-',
+        room: pv.work?.room || '-',
+        status_text: pv.status_text || (pv.mode==='out' ? 'พบการเช็คอินก่อนหน้า' : '')
+      });
+      return;
+    }
+  } catch (e) {
+    // เงียบไว้ ไป fallback ต่อ
+  }
+
+  // 2) Fallback: แยกสองกรณี
+  let fullname = '-', company = '-', task = '-', room = '-', wantOut = false;
+
+  try{
+    if (obj.w) {
+      // เรียก work_preview: backend ควรคืน task/room และสถานะ (กำหนด mode ได้)
+      const r = await apiPost('work_preview', { work_id: obj.w });
+      if (r?.ok) {
+        fullname = r.profile?.fullname || '-';
+        company  = r.profile?.company || r.profile?.workplace || '-';
+        task     = r.work?.task || '-';
+        room     = r.work?.room || '-';
+        wantOut  = !!r.work?.is_checked_in; // ถ้าระบุว่ามีการเช็คอินแล้ว ให้ขึ้น Check out
+      }
+    } else if (obj.q) {
+      // เรียก profile_by_qr: เอาข้อมูลคน + งานล่าสุด (ถ้ามี)
+      const r = await apiPost('profile_by_qr', { qr_id: obj.q });
+      if (r?.ok) {
+        fullname = r.profile?.fullname || '-';
+        company  = r.profile?.company || r.profile?.workplace || '-';
+        task     = r.latest_work?.task || '-';
+        room     = r.latest_work?.room || '-';
+        wantOut  = !!r.latest_work?.is_checked_in;
+      }
+    }
+  }catch(e){ /* ใช้ค่า default ต่อ */ }
+
+  __scanContext.mode = wantOut ? 'out' : 'in';
+  fillScanPreviewUI({
+    fullname, company, task, room,
+    status_text: wantOut ? 'พบการเช็คอินก่อนหน้า' : ''
+  });
+}
+
 
   // เปิด/หยุดกล้อง
   $('#btnOpenCamera')?.addEventListener('click', startScanner);
