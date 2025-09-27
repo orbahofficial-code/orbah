@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>โปรไฟล์ผู้ใช้งาน</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+
+  <!-- QR code (เบาและเสถียร) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
+    :root{ --card-radius: 1rem; }
+    body{ font-family:'Prompt',sans-serif; background:linear-gradient(135deg,#eef2ff 0%,#f8fafc 100%); }
+    .card{ border-radius: var(--card-radius); box-shadow: 0 20px 50px -20px rgba(0,0,0,.15); }
+    .avatar-ring{ box-shadow: 0 0 0 4px #fff, 0 0 0 6px rgba(59,130,246,.6); }
+    .pill{ border-radius: 9999px; }
+    .sidebar-item.active{ background: #eef2ff; color: #1d4ed8; font-weight: 600; }
+    .grid-def{ grid-template-columns: 1fr 1fr; }
+    @media (max-width: 1024px){ .grid-def{ grid-template-columns: 1fr; } }
+    .modal{ position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.55); z-index: 50; }
+    .modal.show{ display:flex; }
+    .modal-card{ background: #fff; border-radius: 1rem; width: 100%; max-width: 560px; box-shadow: 0 30px 60px -25px rgba(0,0,0,.35); }
+    .toast{ position:fixed; right:16px; top:16px; z-index:60; display:flex; flex-direction:column; gap:10px; }
+    .toast-item{ background:#111827; color:#fff; padding:12px 14px; border-radius:12px; box-shadow:0 10px 20px -10px rgba(0,0,0,.3); min-width:260px; display:flex; gap:10px; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <!-- Top bar -->
+  <header class="bg-white/90 shadow-sm sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 lg:px-6 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white grid place-items-center">
+          <i class="fa-solid fa-hospital-user"></i>
+        </div>
+        <div>
+          <h1 class="text-base font-semibold text-gray-800">โปรไฟล์ผู้ใช้งาน</h1>
+          <p class="text-xs text-gray-500">ระบบเข้า-ออก ห้องผ่าตัด</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-600 hidden sm:inline">ยินดีต้อนรับ, <strong data-bind="fullname">ชื่อ-นามสกุล</strong></span>
+        <button id="btnLogout" class="px-3 py-2 pill bg-indigo-600 text-white text-sm hover:bg-indigo-700">
+          <i class="fa-solid fa-right-from-bracket mr-1"></i> ออกจากระบบ
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Content -->
+  <main class="max-w-7xl mx-auto px-4 lg:px-6 py-8">
+    <div class="grid lg:grid-cols-[260px,1fr] gap-6">
+
+      <!-- Sidebar -->
+      <aside class="card bg-white p-4">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-14 h-14 rounded-full overflow-hidden avatar-ring">
+            <img src="" alt="avatar" class="w-full h-full object-cover" data-bind="avatar">
+          </div>
+          <div>
+            <div class="text-sm font-semibold text-gray-800" data-bind="fullname">ชื่อ-นามสกุล</div>
+            <div class="text-xs text-gray-500" data-bind="roleLabel">บทบาท</div>
+          </div>
+        </div>
+        <nav class="space-y-1 text-sm">
+          <a href="#" class="sidebar-item active block px-3 py-2 rounded-lg" data-tab="overview"><i class="fa-solid fa-user mr-2"></i> Overview</a>
+          <a href="#" class="sidebar-item block px-3 py-2 rounded-lg" data-tab="profile"><i class="fa-solid fa-id-card mr-2"></i> ข้อมูลส่วนตัว</a>
+          <a href="#" class="sidebar-item block px-3 py-2 rounded-lg" data-tab="security"><i class="fa-solid fa-shield-keyhole mr-2"></i> ความปลอดภัย</a>
+          <a href="#" class="sidebar-item block px-3 py-2 rounded-lg" data-tab="activity"><i class="fa-solid fa-clock-rotate-left mr-2"></i> กิจกรรมล่าสุด</a>
+        </nav>
+        <div class="mt-6 p-3 rounded-lg bg-indigo-50 text-indigo-700 text-xs">
+          <i class="fa-solid fa-circle-info mr-1"></i>
+          ข้อมูลถูกซิงค์จาก Google Sheet
+        </div>
+      </aside>
+
+      <!-- Main Panel -->
+      <section class="space-y-6">
+
+        <!-- Profile Header Card -->
+        <div class="card bg-white p-6">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <div class="w-24 h-24 rounded-full overflow-hidden avatar-ring">
+                <img src="" alt="avatar" class="w-full h-full object-cover" data-bind="avatar">
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h2 class="text-xl font-semibold text-gray-800" data-bind="fullname">ชื่อ-นามสกุล</h2>
+                  <span class="px-2 py-0.5 pill text-xs bg-emerald-100 text-emerald-700" data-bind="role">role</span>
+                </div>
+                <p class="text-sm text-gray-500"><span data-bind="position">ตำแหน่ง</span> • <span data-bind="workplaceOrCompany">หน่วยงาน</span></p>
+                <p class="text-xs text-gray-400 mt-1">ชื่อผู้ใช้งาน: <span class="font-medium" data-bind="username">username</span></p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <label class="px-3 py-2 pill border border-gray-300 text-sm bg-white cursor-pointer hover:bg-gray-50">
+                <i class="fa-solid fa-camera mr-1"></i> อัปโหลดรูปโปรไฟล์
+                <input type="file" accept="image/*" class="hidden" id="avatarInput">
+              </label>
+              <button class="px-3 py-2 pill bg-white border border-gray-300 text-sm hover:bg-gray-50" id="btnShowQR">
+                <i class="fa-solid fa-qrcode mr-1"></i> แสดง QR Code
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Overview -->
+        <div class="card bg-white p-6" data-pane="overview">
+          <h3 class="text-base font-semibold text-gray-800 mb-4">ข้อมูลโดยสรุป</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gray-50 rounded-xl p-4">
+              <div class="text-xs text-gray-500">อีเมล</div>
+              <div class="font-medium text-gray-800" data-bind="email">example@hospital.go.th</div>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+              <div class="text-xs text-gray-500">เบอร์โทร</div>
+              <div class="font-medium text-gray-800" data-bind="phone">08x-xxx-xxxx</div>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+              <div class="text-xs text-gray-500">ตำแหน่ง</div>
+              <div class="font-medium text-gray-800" data-bind="position">ตำแหน่ง</div>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+              <div class="text-xs text-gray-500">สถานที่ปฏิบัติงาน / หน่วยงาน</div>
+              <div class="font-medium text-gray-800" data-bind="workplaceOrCompany">หน่วยงาน</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table-like mapping -->
+        <div class="card bg-white p-6" data-pane="overview">
+          <h3 class="text-base font-semibold text-gray-800 mb-4">ข้อมูลจากตาราง</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="text-left text-gray-500 border-b">
+                  <th class="py-2 pr-4">คอลัมน์</th>
+                  <th class="py-2">ค่า</th>
+                </tr>
+              </thead>
+              <tbody class="text-gray-800">
+                <tr class="border-b"><td class="py-2 pr-4 text-gray-500">username</td><td class="py-2" data-bind="username">username</td></tr>
+                <tr class="border-b"><td class="py-2 pr-4 text-gray-500">role</td><td class="py-2" data-bind="role">role</td></tr>
+                <tr class="border-b"><td class="py-2 pr-4 text-gray-500">first_name</td><td class="py-2" data-bind="first_name">ชื่อ</td></tr>
+                <tr class="border-b"><td class="py-2 pr-4 text-gray-500">last_name</td><td class="py-2" data-bind="last_name">นามสกุล</td></tr>
+                <tr class="border-b"><td class="py-2 pr-4 text-gray-500">position</td><td class="py-2" data-bind="position">ตำแหน่ง</td></tr>
+                <tr class="border-b"><td class="py-2 pr-4 text-gray-500">workplace/company</td><td class="py-2" data-bind="workplaceOrCompany">หน่วยงาน</td></tr>
+                <tr class="border-b"><td class="py-2 pr-4 text-gray-500">email</td><td class="py-2" data-bind="email">email</td></tr>
+                <tr class="border-b"><td class="py-2 pr-4 text-gray-500">phone</td><td class="py-2" data-bind="phone">เบอร์โทร</td></tr>
+                <tr><td class="py-2 pr-4 text-gray-500">status (เฉพาะ external)</td><td class="py-2" data-bind="status">approved/pending</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Editable Personal Info -->
+        <div class="card bg-white p-6" data-pane="profile" style="display:none;">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-base font-semibold text-gray-800">แก้ไขข้อมูลส่วนตัว</h3>
+            <span class="px-2 py-0.5 pill bg-gray-100 text-xs">draft</span>
+          </div>
+
+          <form id="editForm" class="grid grid-def gap-4">
+            <div class="space-y-2">
+              <label class="text-xs text-gray-500">ชื่อ</label>
+              <input class="w-full border rounded-lg px-3 py-2" name="first_name" placeholder="ชื่อ">
+            </div>
+            <div class="space-y-2">
+              <label class="text-xs text-gray-500">นามสกุล</label>
+              <input class="w-full border rounded-lg px-3 py-2" name="last_name" placeholder="นามสกุล">
+            </div>
+            <div class="space-y-2">
+              <label class="text-xs text-gray-500">ตำแหน่ง</label>
+              <input class="w-full border rounded-lg px-3 py-2" name="position" placeholder="ตำแหน่ง">
+            </div>
+            <div class="space-y-2">
+              <label class="text-xs text-gray-500">สถานที่ปฏิบัติงาน / หน่วยงาน</label>
+              <input class="w-full border rounded-lg px-3 py-2" name="workplace" placeholder="หน่วยงาน">
+            </div>
+            <div class="space-y-2">
+              <label class="text-xs text-gray-500">อีเมล</label>
+              <input type="email" class="w-full border rounded-lg px-3 py-2" name="email" placeholder="email@domain">
+            </div>
+            <div class="space-y-2">
+              <label class="text-xs text-gray-500">เบอร์โทร</label>
+              <input class="w-full border rounded-lg px-3 py-2" name="phone" placeholder="08x-xxx-xxxx">
+            </div>
+
+            <div class="md:col-span-2 flex items-center justify-end gap-2 mt-2">
+              <button type="button" id="btnReset" class="px-4 py-2 pill border border-gray-300 hover:bg-gray-50">ยกเลิก</button>
+              <button id="btnSave" class="px-4 py-2 pill bg-indigo-600 text-white hover:bg-indigo-700">บันทึกการเปลี่ยนแปลง</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Security -->
+        <div class="card bg-white p-6" data-pane="security" style="display:none;">
+          <h3 class="text-base font-semibold text-gray-800 mb-4">ความปลอดภัย</h3>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="p-4 border rounded-xl">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="font-medium text-gray-800">เปลี่ยนรหัสผ่าน</div>
+                  <div class="text-xs text-gray-500">ตั้งรหัสผ่านใหม่เพื่อความปลอดภัย</div>
+                </div>
+                <button class="px-3 py-1.5 pill border text-sm hover:bg-gray-50" id="btnChangePwd" disabled>เร็วๆ นี้</button>
+              </div>
+            </div>
+            <div class="p-4 border rounded-xl">
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="font-medium text-gray-800">เปิดใช้ 2FA</div>
+                  <div class="text-xs text-gray-500">ยืนยันตัวตนสองชั้น (แผนถัดไป)</div>
+                </div>
+                <button class="px-3 py-1.5 pill border text-sm" disabled>เร็วๆ นี้</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Activity placeholder -->
+        <div class="card bg-white p-6" data-pane="activity" style="display:none;">
+          <h3 class="text-base font-semibold text-gray-800 mb-4">กิจกรรมล่าสุด</h3>
+          <p class="text-sm text-gray-500">จะเติมภายหลัง...</p>
+        </div>
+
+      </section>
+    </div>
+  </main>
+
+  <!-- QR Code Modal -->
+  <div class="modal" id="qrModal">
+    <div class="modal-card p-6">
+      <div class="flex items-center justify-between mb-3">
+        <h4 class="text-lg font-semibold">QR Code ของฉัน</h4>
+        <button class="text-gray-500 hover:text-gray-700" data-close="qrModal">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="grid md:grid-cols-[220px,1fr] gap-4">
+        <div class="rounded-xl border bg-white grid place-items-center p-4">
+          <canvas id="qrCanvas" width="200" height="200"></canvas>
+        </div>
+        <div class="space-y-2 text-sm">
+          <div class="text-gray-500">ข้อมูลใน QR</div>
+          <div class="p-3 rounded-lg bg-gray-50 text-gray-800 break-words" id="qrPayload"></div>
+          <div class="flex gap-2 pt-2">
+            <a id="btnDownloadQR" download="my_qr.png" class="px-3 py-2 pill bg-indigo-600 text-white hover:bg-indigo-700 inline-flex items-center">
+              <i class="fa-solid fa-download mr-1"></i> ดาวน์โหลด
+            </a>
+            <button id="btnPrintQR" class="px-3 py-2 pill border hover:bg-gray-50">
+              <i class="fa-solid fa-print mr-1"></i> พิมพ์
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ===== CONFIG =====
+    const API_BASE = "https://script.google.com/macros/s/AKfycbzK9QDRUSEq5U18Pwa40TWA-f4NrGx1CR2xqtnHBRgMQ3kSP1LfaJDMZPRc4evwuww-/exec"; // TODO เปลี่ยนเป็นของคุณ
+
+    // ===== Helpers =====
+    const $  = (sel, root=document) => root.querySelector(sel);
+    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+    const Toast = {
+      show(msg, type='info', timeout=3000){
+        const wrap = $('#toast');
+        const item = document.createElement('div');
+        item.className = 'toast-item';
+        item.innerHTML = `
+          <div><i class="fa-solid ${type==='success'?'fa-circle-check':type==='error'?'fa-circle-xmark':'fa-circle-info'} mt-1"></i></div>
+          <div class="text-sm leading-snug">${msg}</div>`;
+        wrap.appendChild(item);
+        setTimeout(()=>{ item.style.opacity='0'; item.style.transform='translateY(-6px)'; }, timeout-350);
+        setTimeout(()=> item.remove(), timeout);
+      }
+    };
+
+    function openModal(id){ const el = document.getElementById(id); if(el) el.classList.add('show'); }
+    function closeModal(id){ const el = document.getElementById(id); if(el) el.classList.remove('show'); }
+
+    function bindData(data){
+      // แสดงข้อมูลลง [data-bind]
+      $$('[data-bind]').forEach(el=>{
+        const key = el.getAttribute('data-bind');
+        if(key==='avatar'){
+          el.src = data.avatar_url || 'https://placehold.co/240x240/png?text=PROFILE';
+        }else if(key==='workplaceOrCompany'){
+          el.textContent = data.workplace || data.company || '-';
+        }else{
+          el.textContent = data[key] ?? '';
+        }
+      });
+
+      // เติมฟอร์มแก้ไข
+      const form = $('#editForm');
+      if(form){
+        form.first_name.value = data.first_name || '';
+        form.last_name.value  = data.last_name || '';
+        form.position.value   = data.position || '';
+        form.workplace.value  = data.workplace || data.company || '';
+        form.email.value      = data.email || '';
+        form.phone.value      = data.phone || '';
+      }
+    }
+
+    function fileToBase64(file){
+      return new Promise((resolve, reject)=>{
+        const fr = new FileReader();
+        fr.onload = () => {
+          const base64 = String(fr.result).split(',')[1] || '';
+          resolve({ base64, mimeType: file.type || 'image/png', filename: file.name || 'avatar.png' });
+        };
+        fr.onerror = reject;
+        fr.readAsDataURL(file);
+      });
+    }
+
+    function ensureAuth(){
+      const token = localStorage.getItem('auth_token');
+      const username = localStorage.getItem('username');
+      if(!token || !username){
+        window.location.href = 'index.html';
+        return null;
+      }
+      return { token, username };
+    }
+
+    async function apiPost(route, payload){
+      const res = await fetch(`${API_BASE}?route=${route}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // ลด preflight
+        body: JSON.stringify(payload||{})
+      });
+      const data = await res.json().catch(()=> ({}));
+      if(!res.ok) throw new Error(data?.message || 'API error');
+      return data;
+    }
+
+    function setActiveTab(tab){
+      $$('.sidebar-item').forEach(a=>{
+        a.classList.toggle('active', a.getAttribute('data-tab')===tab);
+      });
+      $$('[data-pane]').forEach(p=>{
+        p.style.display = (p.getAttribute('data-pane')===tab || (tab==='overview' && p.getAttribute('data-pane')==='overview')) ? '' : 'none';
+      });
+    }
+
+    function buildQrPayload(profile){
+      // ปรับ payload ตามงานจริงได้ (เช่นฝัง token แบบชั่วคราว)
+      return JSON.stringify({
+        u: profile.username,
+        n: profile.fullname,
+        r: profile.role,
+        t: localStorage.getItem('auth_token') || ''
+      });
+    }
+
+    function drawQR(canvas, text){
+      const qr = new QRious({
+        element: canvas,
+        size: 200,
+        value: text,
+        level: 'M'
+      });
+      return qr;
+    }
+
+    function dataUrlFromCanvas(canvas){
+      try{ return canvas.toDataURL('image/png'); }catch(e){ return ''; }
+    }
+
+    // ===== App =====
+    document.addEventListener('DOMContentLoaded', async ()=>{
+      // Tabs
+      $$('.sidebar-item').forEach(a=>{
+        a.addEventListener('click', (e)=> {
+          e.preventDefault();
+          setActiveTab(a.getAttribute('data-tab'));
+        });
+      });
+
+      // Logout
+      $('#btnLogout').addEventListener('click', ()=>{
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('username');
+        localStorage.removeItem('fullname');
+        window.location.href = 'index.html';
+      });
+
+      const auth = ensureAuth();
+      if(!auth) return;
+
+      try{
+        // โหลดโปรไฟล์
+        const prof = await apiPost('get_profile', { username: auth.username });
+        if(prof?.ok){
+          bindData(prof.data || {});
+          // เก็บชื่อเต็มไว้ใช้ส่วนอื่น
+          if(prof.data?.fullname) localStorage.setItem('fullname', prof.data.fullname);
+        }else{
+          Toast.show(prof?.message || 'โหลดโปรไฟล์ไม่สำเร็จ','error');
+        }
+      }catch(err){
+        console.error(err);
+        Toast.show('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
+      }
+
+      // อัปโหลดรูปโปรไฟล์
+      $('#avatarInput').addEventListener('change', async (e)=>{
+        const file = e.target.files?.[0];
+        if(!file) return;
+        if(!file.type.startsWith('image/')){ Toast.show('กรุณาเลือกไฟล์รูปภาพ','error'); return; }
+
+        try{
+          const payload = await fileToBase64(file);
+          const res = await apiPost('upload_avatar', {
+            username: localStorage.getItem('username'),
+            file: payload
+          });
+          if(res?.ok){
+            // รีเฟรชรูป
+            $$('img[data-bind="avatar"]').forEach(img=> img.src = res.url);
+            Toast.show('อัปโหลดรูปโปรไฟล์สำเร็จ','success');
+          }else{
+            Toast.show(res?.message || 'อัปโหลดไม่สำเร็จ','error');
+          }
+        }catch(err){
+          console.error(err);
+          Toast.show('อัปโหลดไม่สำเร็จ','error');
+        }finally{
+          e.target.value = '';
+        }
+      });
+
+      // แสดง QR
+      $('#btnShowQR').addEventListener('click', async ()=>{
+        // สร้าง payload จากสิ่งที่แสดงบนหน้า
+        const data = {
+          username: $('[data-bind="username"]').textContent.trim(),
+          fullname: $('[data-bind="fullname"]').textContent.trim(),
+          role:     $('[data-bind="role"]').textContent.trim()
+        };
+        const payload = buildQrPayload(data);
+        $('#qrPayload').textContent = payload;
+        openModal('qrModal');
+        // วาด QR
+        drawQR($('#qrCanvas'), payload);
+        // set download link
+        const url = dataUrlFromCanvas($('#qrCanvas'));
+        $('#btnDownloadQR').href = url || '#';
+      });
+
+      // ปิด QR
+      $('[data-close="qrModal"]').addEventListener('click', ()=> closeModal('qrModal'));
+      $('#btnPrintQR').addEventListener('click', ()=>{
+        const w = window.open('');
+        const dataUrl = dataUrlFromCanvas($('#qrCanvas'));
+        w.document.write(`<img src="${dataUrl}" style="width:300px;height:300px;">`);
+        w.print();
+        w.close();
+      });
+
+      // เซฟโปรไฟล์
+      $('#btnSave').addEventListener('click', async (e)=>{
+        e.preventDefault();
+        const f = $('#editForm');
+        const body = {
+          username: localStorage.getItem('username'),
+          first_name: f.first_name.value.trim(),
+          last_name:  f.last_name.value.trim(),
+          position:   f.position.value.trim(),
+          workplace:  f.workplace.value.trim(),
+          email:      f.email.value.trim(),
+          phone:      f.phone.value.trim()
+        };
+        try{
+          const res = await apiPost('update_profile', body);
+          if(res?.ok){
+            Toast.show('บันทึกข้อมูลสำเร็จ','success');
+            // รีเฟรชข้อมูลบนหน้า
+            const data = res.data || body;
+            data.fullname = data.first_name + ' ' + data.last_name;
+            bindData(data);
+          }else{
+            Toast.show(res?.message || 'บันทึกไม่สำเร็จ','error');
+          }
+        }catch(err){
+          console.error(err);
+          Toast.show('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
+        }
+      });
+
+      // ยกเลิก -> รีโหลดข้อมูลจากเซิร์ฟเวอร์
+      $('#btnReset').addEventListener('click', async ()=>{
+        try{
+          const prof = await apiPost('get_profile', { username: localStorage.getItem('username') });
+          if(prof?.ok){ bindData(prof.data || {}); }
+        }catch(e){}
+      });
+
+      // เริ่มต้นที่ overview
+      setActiveTab('overview');
+    });
+  </script>
+</body>
+</html>
