@@ -444,22 +444,29 @@
       });
 
       // แสดง QR
-      $('#btnShowQR').addEventListener('click', async ()=>{
-        // สร้าง payload จากสิ่งที่แสดงบนหน้า
+      $('#btnShowQR').addEventListener('click', () => {
+        const usernameEl = $('[data-bind="username"]');
+        const fullnameEl = $('[data-bind="fullname"]');
+        const roleEl     = $('[data-bind="role"]');
+      
         const data = {
-          username: $('[data-bind="username"]').textContent.trim(),
-          fullname: $('[data-bind="fullname"]').textContent.trim(),
-          role:     $('[data-bind="role"]').textContent.trim()
+          username: usernameEl ? usernameEl.textContent.trim() : '',
+          fullname: fullnameEl ? fullnameEl.textContent.trim() : '',
+          role:     roleEl     ? roleEl.textContent.trim()     : ''
+          // ถ้าใช้แบบถาวร ให้เพิ่ม qr_id มาด้วย แล้วแก้ buildQrPayload() ให้ใช้ qr_id
         };
-        const payload = buildQrPayload(data);
-        $('#qrPayload').textContent = payload;
+      
+        const payload = buildQrPayload(data); // ใช้ฟังก์ชันเดิม
         openModal('qrModal');
-        // วาด QR
-        drawQR($('#qrCanvas'), payload);
-        // set download link
-        const url = dataUrlFromCanvas($('#qrCanvas'));
-        $('#btnDownloadQR').href = url || '#';
+        const canvas = $('#qrCanvas');
+        if (canvas) {
+          drawQR(canvas, payload);
+          const url = canvas.toDataURL('image/png');
+          const dl  = $('#btnDownloadQR');
+          if (dl) dl.href = url || '#';
+        }
       });
+
 
       // ปิด QR
       $('[data-close="qrModal"]').addEventListener('click', ()=> closeModal('qrModal'));
