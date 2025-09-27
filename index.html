@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ระบบเข้า-ออก ห้องผ่าตัด</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
+    body{font-family:'Prompt',sans-serif;box-sizing:border-box;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;}
+    .login-container{backdrop-filter:blur(10px);background:rgba(255,255,255,.95);box-shadow:0 25px 50px -12px rgba(0,0,0,.25);}
+    .input-group{position:relative;}
+    .input-group input{transition:all .3s ease;}
+    .input-group input:focus{transform:translateY(-2px);}
+    .floating-label{position:absolute;left:12px;top:12px;color:#6b7280;transition:all .3s ease;pointer-events:none;}
+    .input-group input:focus + .floating-label,
+    .input-group input:not(:placeholder-shown) + .floating-label{
+      top:-8px;left:8px;font-size:12px;color:#3b82f6;background:white;padding:0 4px;
+    }
+    .login-btn{background:linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%);transition:all .3s ease;}
+    .login-btn:hover{transform:translateY(-2px);box-shadow:0 10px 20px -5px rgba(59,130,246,.4);}
+    .security-badge{animation:pulse 2s infinite;}
+    @keyframes pulse {0%,100%{opacity:1} 50%{opacity:.7}}
+
+    /* Toast */
+    .toast{position:fixed; right:16px; top:16px; z-index:9999; display:flex; flex-direction:column; gap:10px;}
+    .toast-item{background:#111827; color:#fff; padding:12px 14px; border-radius:10px; box-shadow:0 10px 20px -10px rgba(0,0,0,.3); min-width:260px; display:flex; align-items:flex-start; gap:10px; animation:slidein .25s ease;}
+    .toast-item.success{background:#0f766e}
+    .toast-item.error{background:#991b1b}
+    .toast-item.info{background:#1f2937}
+    @keyframes slidein{from{transform:translateY(-10px);opacity:0} to{transform:translateY(0);opacity:1}}
+
+    /* Modal */
+    .modal{position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:50;}
+    .modal.show{display:flex;}
+    .card{background:#fff; border-radius:16px; box-shadow:0 20px 50px -20px rgba(0,0,0,.35);}
+  </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+  <div class="login-container w-full max-w-md rounded-2xl p-8">
+    <!-- Header -->
+    <div class="text-center mb-6">
+      <div class="mx-auto w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
+        <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+          <path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-0.257-0.257A6 6 0 1118 8zM2 8a6 6 0 1010.257 5.743L12 14l-0.257-0.257A6 6 0 012 8zm8-4a4 4 0 100 8 4 4 0 000-8z" clip-rule="evenodd"></path>
+        </svg>
+      </div>
+      <h1 class="text-2xl font-bold text-gray-800 mb-2">เข้าสู่ระบบ</h1>
+      <p class="text-gray-600">ระบบเข้า-ออก ห้องผ่าตัด</p>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="grid grid-cols-2 gap-2 mb-6">
+      <button id="openInternalReg" class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm">
+        <i class="fa-solid fa-user-plus mr-1"></i> ลงทะเบียนผู้ใช้ภายใน
+      </button>
+      <button id="openExternalReg" class="px-3 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white text-sm">
+        <i class="fa-solid fa-id-card-clip mr-1"></i> ลงทะเบียนบุคคลภายนอก
+      </button>
+    </div>
+
+    <!-- Login Form (ไม่มีเลือกประเภทแล้ว) -->
+    <form id="loginForm" class="space-y-4 transition-all duration-300">
+      <div class="input-group">
+        <input type="text" id="username" name="username"
+               class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+               placeholder=" " required />
+        <label for="username" class="floating-label">ชื่อผู้ใช้งาน</label>
+      </div>
+
+      <div class="input-group">
+        <input type="password" id="password" name="password"
+               class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
+               placeholder=" " required />
+        <label for="password" class="floating-label">รหัสผ่าน</label>
+        <button type="button" id="togglePassword"
+                class="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
+          <i class="fa-regular fa-eye"></i>
+        </button>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <label class="flex items-center">
+          <input id="rememberMe" type="checkbox"
+                 class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" />
+          <span class="ml-2 text-sm text-gray-600">จดจำการเข้าสู่ระบบ</span>
+        </label>
+        <button type="button" id="openForgot" class="text-sm text-blue-600 hover:text-blue-800">
+          ลืมรหัสผ่าน?
+        </button>
+      </div>
+
+      <button type="submit" id="loginBtn" class="login-btn w-full text-white font-medium py-3 px-4 rounded-lg">
+        เข้าสู่ระบบ
+      </button>
+    </form>
+
+    <!-- Security Notice -->
+    <div class="mt-6 p-3 bg-gray-50 rounded-lg">
+      <div class="flex items-center">
+        <div class="security-badge w-4 h-4 bg-green-500 rounded-full mr-2"></div>
+        <p class="text-xs text-gray-600">การเชื่อมต่อของคุณได้รับการป้องกันด้วย SSL</p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-6 text-center">
+      <p class="text-xs text-gray-500">© 2025 ระบบจัดการเครื่องมือแพทย์</p>
+    </div>
+  </div>
+
+  <!-- Success Modal -->
+  <div id="successModal" class="modal">
+    <div class="card w-full max-w-sm mx-4 p-6">
+      <div class="text-center">
+        <div class="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+          <i class="fa-solid fa-check text-green-600 text-2xl"></i>
+        </div>
+        <h3 class="text-lg font-semibold text-gray-800 mb-2">สำเร็จ</h3>
+        <p class="text-gray-600 mb-4" id="welcomeMessage">ดำเนินการเสร็จเรียบร้อย</p>
+        <button id="closeModal" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg">
+          ไปยังโปรไฟล์
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Internal Register Modal -->
+  <div id="internalModal" class="modal">
+    <div class="card w-full max-w-2xl mx-4 p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold">ลงทะเบียนผู้ใช้ภายใน</h3>
+        <button class="text-gray-500 hover:text-gray-700" data-close="internalModal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="internalForm" class="grid md:grid-cols-2 gap-4">
+        <div><label class="text-sm">ชื่อ</label><input class="w-full border rounded-lg px-3 py-2" name="first_name" required></div>
+        <div><label class="text-sm">นามสกุล</label><input class="w-full border rounded-lg px-3 py-2" name="last_name" required></div>
+        <div><label class="text-sm">ตำแหน่ง</label><input class="w-full border rounded-lg px-3 py-2" name="position" required></div>
+        <div><label class="text-sm">สถานที่ปฏิบัติงาน</label><input class="w-full border rounded-lg px-3 py-2" name="workplace" required></div>
+        <div><label class="text-sm">ชื่อผู้ใช้งาน</label><input class="w-full border rounded-lg px-3 py-2" name="username" required></div>
+        <div><label class="text-sm">Email</label><input type="email" class="w-full border rounded-lg px-3 py-2" name="email" required></div>
+        <div><label class="text-sm">เบอร์โทร</label><input class="w-full border rounded-lg px-3 py-2" name="phone" required></div>
+        <div class="md:col-span-1"><label class="text-sm">รหัสผ่าน</label><input type="password" class="w-full border rounded-lg px-3 py-2" name="password" required></div>
+        <div class="md:col-span-1"><label class="text-sm">คอนเฟิร์มรหัส</label><input type="password" class="w-full border rounded-lg px-3 py-2" name="confirm" required></div>
+        <div class="md:col-span-2">
+          <label class="text-sm">บทบาท</label>
+          <select class="w-full border rounded-lg px-3 py-2" name="role" required>
+            <option value="admin">ผู้ดูแลระบบ</option>
+            <option value="or-staff">เจ้าหน้าที่ห้องผ่าตัด</option>
+            <option value="hospital-staff">เจ้าหน้าที่ รพ.</option>
+          </select>
+        </div>
+        <div class="md:col-span-2 flex gap-2 justify-end">
+          <button type="button" class="px-4 py-2 rounded-lg border" data-close="internalModal">ยกเลิก</button>
+          <button id="btnInternalSubmit" class="px-4 py-2 rounded-lg bg-emerald-600 text-white">
+            บันทึกการลงทะเบียน
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- External Register Modal -->
+  <div id="externalModal" class="modal">
+    <div class="card w-full max-w-2xl mx-4 p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold">ลงทะเบียนบุคคลภายนอก</h3>
+        <button class="text-gray-500 hover:text-gray-700" data-close="externalModal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="externalForm" class="grid md:grid-cols-2 gap-4">
+        <div><label class="text-sm">ชื่อ</label><input class="w-full border rounded-lg px-3 py-2" name="first_name" required></div>
+        <div><label class="text-sm">นามสกุล</label><input class="w-full border rounded-lg px-3 py-2" name="last_name" required></div>
+        <div><label class="text-sm">ตำแหน่ง</label><input class="w-full border rounded-lg px-3 py-2" name="position" required></div>
+        <div><label class="text-sm">ชื่อหน่วยงาน/บริษัท</label><input class="w-full border rounded-lg px-3 py-2" name="company" required></div>
+        <div><label class="text-sm">เบอร์โทรหน่วยงาน/บริษัท</label><input class="w-full border rounded-lg px-3 py-2" name="company_phone" required></div>
+        <div><label class="text-sm">ชื่อผู้ใช้งาน</label><input class="w-full border rounded-lg px-3 py-2" name="username" required></div>
+        <div><label class="text-sm">Email</label><input type="email" class="w-full border rounded-lg px-3 py-2" name="email" required></div>
+        <div><label class="text-sm">เบอร์โทร</label><input class="w-full border rounded-lg px-3 py-2" name="phone" required></div>
+        <div><label class="text-sm">รหัสผ่าน</label><input type="password" class="w-full border rounded-lg px-3 py-2" name="password" required></div>
+        <div><label class="text-sm">คอนเฟิร์มรหัส</label><input type="password" class="w-full border rounded-lg px-3 py-2" name="confirm" required></div>
+        <div class="md:col-span-2"><label class="text-sm">อัปโหลดรูปถ่ายบัตรประชาชน (JPG/PNG)</label><input type="file" accept="image/*" class="w-full border rounded-lg px-3 py-2" name="idcard_img" required></div>
+        <div class="md:col-span-2"><label class="text-sm">อัปโหลดภาพถ่ายหน้าตรง (ไม่สวมหมวก/แว่น)</label><input type="file" accept="image/*" class="w-full border rounded-lg px-3 py-2" name="portrait_img" required></div>
+        <div class="md:col-span-2 flex gap-2 justify-end">
+          <button type="button" class="px-4 py-2 rounded-lg border" data-close="externalModal">ยกเลิก</button>
+          <button id="btnExternalSubmit" class="px-4 py-2 rounded-lg bg-yellow-600 text-white">บันทึกการลงทะเบียน</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Forgot Password Modal -->
+  <div id="forgotModal" class="modal">
+    <div class="card w-full max-w-lg mx-4 p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold">ลืมรหัสผ่าน</h3>
+        <button class="text-gray-500 hover:text-gray-700" data-close="forgotModal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="forgotForm" class="grid gap-4">
+        <div><label class="text-sm">ชื่อผู้ใช้งาน</label><input class="w-full border rounded-lg px-3 py-2" name="username" required></div>
+        <div><label class="text-sm">Email</label><input type="email" class="w-full border rounded-lg px-3 py-2" name="email" required></div>
+        <div><label class="text-sm">รายละเอียดเพิ่มเติมถึงแอดมิน</label><textarea class="w-full border rounded-lg px-3 py-2" rows="3" name="note" placeholder="เช่น ขอรีเซ็ตรหัสผ่าน เนื่องจาก..."></textarea></div>
+        <div class="flex gap-2 justify-end">
+          <button type="button" class="px-4 py-2 rounded-lg border" data-close="forgotModal">ยกเลิก</button>
+          <button id="btnForgotSubmit" class="px-4 py-2 rounded-lg bg-blue-600 text-white">ส่งคำขอ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // ====== CONFIG: ใส่ URL GAS (ลงท้าย /exec)
+    const API_BASE = "https://script.google.com/macros/s/AKfycbzK9QDRUSEq5U18Pwa40TWA-f4NrGx1CR2xqtnHBRgMQ3kSP1LfaJDMZPRc4evwuww-/exec"; // TODO: ใส่ของจริง
+
+    const $  = (sel, root = document) => root.querySelector(sel);
+    const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+    const Toast = {
+      show(msg, type='info', timeout=3000){
+        const wrap = $('#toast');
+        const item = document.createElement('div');
+        item.className = `toast-item ${type}`;
+        item.innerHTML = `
+          <div><i class="fa-solid ${type==='success'?'fa-circle-check':type==='error'?'fa-circle-xmark':'fa-circle-info'} mt-1"></i></div>
+          <div class="text-sm leading-snug">${msg}</div>`;
+        wrap.appendChild(item);
+        setTimeout(()=>{ item.style.opacity='0'; item.style.transform='translateY(-6px)'; }, timeout-350);
+        setTimeout(()=> item.remove(), timeout);
+      }
+    };
+
+    function setLoading(btn, isLoading, text='กำลังดำเนินการ...'){
+      if(!btn) return;
+      if(isLoading){
+        btn.dataset._text = btn.textContent;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i>${text}`;
+        btn.disabled = true;
+      }else{
+        btn.innerHTML = btn.dataset._text || 'ดำเนินการ';
+        btn.disabled = false;
+      }
+    }
+
+    function openModal(id){ const m = document.getElementById(id); if(m) m.classList.add('show'); }
+    function closeModal(id){ const m = document.getElementById(id); if(m) m.classList.remove('show'); }
+
+    function fileToBase64(file){
+      return new Promise((resolve, reject)=>{
+        const fr = new FileReader();
+        fr.onload = () => {
+          const dataUrl = fr.result;
+          const base64 = String(dataUrl).split(',')[1] || '';
+          resolve({ base64, mimeType: file.type || 'application/octet-stream', filename: file.name || 'upload.bin' });
+        };
+        fr.onerror = reject;
+        fr.readAsDataURL(file);
+      });
+    }
+
+    function goProfile(){ window.location.href = 'profile.html'; }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const loginForm = $('#loginForm');
+      const usernameInput = $('#username');
+      const passwordInput = $('#password');
+      const togglePasswordBtn = $('#togglePassword');
+      const rememberCheckbox = $('#rememberMe');
+      const loginButton = $('#loginBtn');
+
+      const successModal = $('#successModal');
+      const welcomeMessage = $('#welcomeMessage');
+      const closeModalBtn = $('#closeModal');
+
+      // Quick buttons
+      $('#openInternalReg').addEventListener('click', ()=> openModal('internalModal'));
+      $('#openExternalReg').addEventListener('click', ()=> openModal('externalModal'));
+      $('#openForgot').addEventListener('click', ()=> openModal('forgotModal'));
+
+      // Close modal buttons
+      $$('[data-close]').forEach(btn=>{
+        btn.addEventListener('click', ()=> closeModal(btn.getAttribute('data-close')));
+      });
+
+      // Toggle password visibility
+      togglePasswordBtn.addEventListener('click', () => {
+        const isPwd = passwordInput.type === 'password';
+        passwordInput.type = isPwd ? 'text' : 'password';
+        togglePasswordBtn.innerHTML = `<i class="fa-regular ${isPwd? 'fa-eye-slash':'fa-eye'}"></i>`;
+      });
+
+      // Load remembered username
+      const savedUsername = localStorage.getItem('login_username');
+      if(savedUsername){ usernameInput.value = savedUsername; }
+
+      // ===== Login (ไม่มี role ส่งไปแล้ว) =====
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = usernameInput.value.trim();
+        const password = passwordInput.value;
+        if(!username || !password){ Toast.show('กรุณากรอกชื่อผู้ใช้งานและรหัสผ่าน','error'); return; }
+
+        setLoading(loginButton, true, 'กำลังตรวจสอบ...');
+        try{
+          const res = await fetch(`${API_BASE}?route=login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ username, password })
+          });
+          const data = await res.json().catch(()=> ({}));
+          if(res.ok && data?.ok){
+            if(rememberCheckbox.checked){ localStorage.setItem('login_username', username); }
+            else{ localStorage.removeItem('login_username'); }
+
+            localStorage.setItem('auth_token', data.token || '');
+            localStorage.setItem('userRole', data.role || '');
+            localStorage.setItem('username', username);
+            localStorage.setItem('fullname', data.fullname || '');
+
+            welcomeMessage.textContent = `ยินดีต้อนรับ ${data.fullname || username} (${data.roleName || ''})`;
+            successModal.classList.add('show');
+            closeModalBtn.onclick = ()=>{ successModal.classList.remove('show'); goProfile(); };
+          }else{
+            Toast.show(data?.message || 'เข้าสู่ระบบไม่สำเร็จ', 'error');
+          }
+        }catch(err){
+          console.error(err);
+          Toast.show('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่', 'error');
+        }finally{
+          setLoading(loginButton, false);
+        }
+      });
+
+      // ===== Register Internal =====
+      $('#btnInternalSubmit').addEventListener('click', async (e)=>{
+        e.preventDefault();
+        const f = $('#internalForm');
+        const form = Object.fromEntries(new FormData(f).entries());
+        if(form.password !== form.confirm){ Toast.show('รหัสผ่านไม่ตรงกัน','error'); return; }
+        if(!['admin','or-staff','hospital-staff'].includes(form.role)){ Toast.show('บทบาทไม่ถูกต้อง','error'); return; }
+
+        const btn = e.currentTarget;
+        setLoading(btn, true);
+        try{
+          const res = await fetch(`${API_BASE}?route=register_internal`, {
+            method: 'POST',
+            headers: {'Content-Type':'text/plain;charset=utf-8'},
+            body: JSON.stringify(form)
+          });
+          const data = await res.json().catch(()=> ({}));
+          if(res.ok && data?.ok){
+            Toast.show('ลงทะเบียนสำเร็จ','success');
+            closeModal('internalModal');
+          }else{
+            Toast.show(data?.message || 'ลงทะเบียนไม่สำเร็จ','error');
+          }
+        }catch(err){
+          console.error(err);
+          Toast.show('ไม่สามารถลงทะเบียนได้','error');
+        }finally{ setLoading(btn, false); }
+      });
+
+      // ===== Register External (base64 images) =====
+      $('#btnExternalSubmit').addEventListener('click', async (e)=>{
+        e.preventDefault();
+        const f = $('#externalForm');
+        const fd = new FormData(f);
+        const form = Object.fromEntries(fd.entries());
+        if(form.password !== form.confirm){ Toast.show('รหัสผ่านไม่ตรงกัน','error'); return; }
+
+        const idFile = fd.get('idcard_img');
+        const faceFile = fd.get('portrait_img');
+        if(!(idFile && idFile.size) || !(faceFile && faceFile.size)){
+          Toast.show('กรุณาอัปโหลดภาพให้ครบ','error'); return;
+        }
+
+        const btn = e.currentTarget;
+        setLoading(btn, true, 'กำลังอัปโหลด...');
+        try{
+          const idObj = await fileToBase64(idFile);
+          const faceObj = await fileToBase64(faceFile);
+          const payload = { ...form, idcard_img: idObj, portrait_img: faceObj };
+
+          const res = await fetch(`${API_BASE}?route=register_external`, {
+            method: 'POST',
+            headers: {'Content-Type':'text/plain;charset=utf-8'},
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json().catch(()=> ({}));
+          if(res.ok && data?.ok){
+            Toast.show('ส่งคำขอลงทะเบียนแล้ว (รอตรวจสอบ)','success');
+            closeModal('externalModal');
+          }else{
+            Toast.show(data?.message || 'ลงทะเบียนไม่สำเร็จ','error');
+          }
+        }catch(err){
+          console.error(err);
+          Toast.show('ไม่สามารถส่งคำขอได้','error');
+        }finally{ setLoading(btn, false); }
+      });
+
+      // ===== Forgot Password =====
+      $('#btnForgotSubmit').addEventListener('click', async (e)=>{
+        e.preventDefault();
+        const f = $('#forgotForm');
+        const form = Object.fromEntries(new FormData(f).entries());
+
+        const btn = e.currentTarget;
+        setLoading(btn, true, 'กำลังส่งคำขอ...');
+        try{
+          const res = await fetch(`${API_BASE}?route=forgot_password`, {
+            method: 'POST',
+            headers: {'Content-Type':'text/plain;charset=utf-8'},
+            body: JSON.stringify(form)
+          });
+          const data = await res.json().catch(()=> ({}));
+          if(res.ok && data?.ok){
+            Toast.show('ส่งคำขอแล้ว แอดมินจะตรวจสอบให้ครับ','success');
+            closeModal('forgotModal');
+          }else{
+            Toast.show(data?.message || 'ส่งคำขอไม่สำเร็จ','error');
+          }
+        }catch(err){
+          console.error(err);
+          Toast.show('ไม่สามารถส่งคำขอได้','error');
+        }finally{ setLoading(btn, false); }
+      });
+
+    });
+  </script>
+</body>
+</html>
