@@ -457,61 +457,7 @@
     return data;
   }
 
-function setActiveTab(tab){
-  const panes = Array.from(document.querySelectorAll('[data-pane]'));
-  const items = Array.from(document.querySelectorAll('.sidebar-item'));
-  if (panes.length === 0) return;
 
-  // ใช้ค่า tab จากพารามิเตอร์ > hash > overview
-  tab = (tab || (location.hash || '#overview').slice(1)).trim();
-
-  // หาแท็บปัจจุบัน (ก่อนเปลี่ยน)
-  const current =
-    document.querySelector('.sidebar-item.active')?.getAttribute('data-tab') ||
-    panes.find(p => p.style.display !== 'none')?.getAttribute('data-pane') ||
-    'overview';
-
-  // ถ้า tab ไม่อยู่ในรายการ pane ให้ fallback เป็น overview
-  const allowedTabs = new Set(panes.map(p => p.getAttribute('data-pane')));
-  if (!allowedTabs.has(tab)) tab = 'overview';
-
-  // ถ้าออกจากแท็บ scan ให้ปิดกล้อง
-  if (typeof stopScanner === 'function' && current === 'scan' && tab !== 'scan') {
-    try { stopScanner(); } catch (_) {}
-  }
-
-  // อัปเดตเมนูด้านซ้าย
-  items.forEach(a => {
-    const isActive = a.getAttribute('data-tab') === tab;
-    a.classList.toggle('active', isActive);
-    a.setAttribute('aria-current', isActive ? 'page' : 'false');
-  });
-
-  // แสดง/ซ่อน pane
-  panes.forEach(p => {
-    p.style.display = (p.getAttribute('data-pane') === tab) ? '' : 'none';
-  });
-
-  // อัปเดต hash เมื่อจำเป็นเท่านั้น
-  const newHash = '#' + tab;
-  if (location.hash !== newHash) {
-    try { history.replaceState(null, '', newHash); }
-    catch (_) { location.hash = newHash; }
-  }
-
-  // โฟกัสองค์ประกอบแรกเพื่อการเข้าถึง
-  const firstFocusable = document.querySelector(
-    `[data-pane="${tab}"] a, [data-pane="${tab}"] button, [data-pane="${tab}"] input, [data-pane="${tab}"] select, [data-pane="${tab}"] textarea, [data-pane="${tab}"] [tabindex="0"]`
-  );
-  if (firstFocusable) {
-    try { firstFocusable.focus({ preventScroll: true }); } catch (_) {}
-  }
-
-  // ส่งอีเวนต์เมื่อเปลี่ยนแท็บจริง
-  if (current !== tab) {
-    document.dispatchEvent(new CustomEvent('tabchange', { detail: { tab, prev: current } }));
-  }
-}
 
   function buildQrPayload(profile){
     return JSON.stringify({ q: profile.qr_id });
