@@ -53,6 +53,15 @@
     }
     body.modal-open{ overflow:hidden; }
     .modal{ padding-top: max(24px, env(safe-area-inset-top)); padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+
+    /* ===== Preview boxes ===== */
+    .preview-box{
+      width:100%; height:180px; border:1px solid #e5e7eb; border-radius:12px;
+      background:#fafafa; overflow:hidden; display:flex; align-items:center; justify-content:center;
+    }
+    .preview-box img{ max-width:100%; max-height:100%; object-fit:contain; }
+    .preview-note{ font-size:.75rem; color:#6b7280; }
+
   </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
@@ -164,7 +173,7 @@
         <div><label class="text-sm">Email</label><input type="email" class="w-full border rounded-lg px-3 py-2" name="email" required></div>
         <div><label class="text-sm">เบอร์โทร</label><input class="w-full border rounded-lg px-3 py-2" name="phone" required></div>
         <div class="md:col-span-1"><label class="text-sm">รหัสผ่าน</label><input type="password" class="w-full border rounded-lg px-3 py-2" name="password" required></div>
-        <div class="md:col-span-1"><label class="text-sm">คอนเฟิร์มรหัส</label><input type="password" class="w-full border rounded-lg px-3 py-2" name="confirm" required></div>
+        <div class="md:col-span-1"><label class="text-sm">ยืนยันรหัสผ่าน</label><input type="password" class="w-full border rounded-lg px-3 py-2" name="confirm" required></div>
         <!-- ไม่มีตัวเลือกบทบาท ให้ admin จัดการทีหลัง -->
         <div class="md:col-span-2 flex gap-2 justify-end">
           <button type="button" class="px-4 py-2 rounded-lg border" data-close="internalModal">ยกเลิก</button>
@@ -196,9 +205,22 @@
         <div><label class="text-sm">Email</label><input type="email" class="w-full border rounded-lg px-3 py-2" name="email" required></div>
         <div><label class="text-sm">เบอร์โทร</label><input class="w-full border rounded-lg px-3 py-2" name="phone" required></div>
         <div><label class="text-sm">รหัสผ่าน</label><input type="password" class="w-full border rounded-lg px-3 py-2" name="password" required></div>
-        <div><label class="text-sm">คอนเฟิร์มรหัส</label><input type="password" class="w-full border rounded-lg px-3 py-2" name="confirm" required></div>
-        <div class="md:col-span-2"><label class="text-sm">อัปโหลดรูปถ่ายบัตรประชาชน (JPG/PNG)</label><input type="file" accept="image/*" class="w-full border rounded-lg px-3 py-2" name="idcard_img" required></div>
-        <div class="md:col-span-2"><label class="text-sm">อัปโหลดภาพถ่ายหน้าตรง (ไม่สวมหมวก/แว่น)</label><input type="file" accept="image/*" class="w-full border rounded-lg px-3 py-2" name="portrait_img" required></div>
+        <div><label class="text-sm">ยืนยันรหัสผ่าน</label><input type="password" class="w-full border rounded-lg px-3 py-2" name="confirm" required></div>
+        <!-- บัตรประชาชน (พรีวิว + ลายน้ำ) -->
+        <div class="md:col-span-2">
+          <label class="text-sm">อัปโหลดรูปถ่ายบัตรประชาชน (JPG/PNG)</label>
+          <input id="idcard_input" type="file" accept="image/*" class="w-full border rounded-lg px-3 py-2" name="idcard_img" required>
+          <div class="mt-2 preview-box"><img id="idcard_preview" alt="พรีวิวบัตรประชาชน"></div>
+          <p class="preview-note">* ระบบจะใส่ลายน้ำ “กวห.รพ.ภูมิพลอดุลยเดช พอ.” ลงบนภาพก่อนบันทึก</p>
+        </div>
+        
+        <!-- ภาพหน้าตรง (พรีวิว ไม่มีลายน้ำ) -->
+        <div class="md:col-span-2">
+          <label class="text-sm">อัปโหลดภาพถ่ายหน้าตรง (ไม่สวมหมวก/แว่น)</label>
+          <input id="portrait_input" type="file" accept="image/*" class="w-full border rounded-lg px-3 py-2" name="portrait_img" required>
+          <div class="mt-2 preview-box"><img id="portrait_preview" alt="พรีวิวหน้าตรง"></div>
+        </div>
+
         <div class="md:col-span-2 flex gap-2 justify-end">
           <button type="button" class="px-4 py-2 rounded-lg border" data-close="externalModal">ยกเลิก</button>
           <button id="btnExternalSubmit" class="px-4 py-2 rounded-lg bg-yellow-600 text-white">บันทึกการลงทะเบียน</button>
@@ -308,6 +330,61 @@
 
     function goProfile(){ window.location.href = 'profile.html'; }
 
+    // ===== Image helpers =====
+    function readFileAsDataURL(file){
+      return new Promise((resolve, reject)=>{
+        const fr = new FileReader();
+        fr.onload = ()=> resolve(fr.result);
+        fr.onerror = reject;
+        fr.readAsDataURL(file);
+      });
+    }
+    
+    // ลดขนาด + ใส่ลายน้ำ (ถ้ากำหนด text) แล้วคืนเป็น dataURL
+    async function makeDataURLWithOptionalWatermark(file, {maxW=1400, maxH=1400, mime='image/jpeg', quality=0.92, watermarkText='' } = {}){
+      const dataURL = await readFileAsDataURL(file);
+    
+      // สร้าง image
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      const loaded = new Promise((res, rej)=>{ img.onload=res; img.onerror=rej; });
+      img.src = dataURL; await loaded;
+    
+      // คำนวณสัดส่วน
+      let {width:w, height:h} = img;
+      const scale = Math.min(1, maxW / w, maxH / h);
+      const cw = Math.round(w * scale), ch = Math.round(h * scale);
+    
+      // วาดลง canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = cw; canvas.height = ch;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, cw, ch);
+    
+      // ใส่ลายน้ำถ้ามี
+      if (watermarkText){
+        const diag = Math.sqrt(cw*cw + ch*ch);
+        // ตั้งฟอนต์ตามขนาดภาพ (ใหญ่พอเห็นชัด)
+        const fontSize = Math.max(24, Math.round(diag * 0.05));
+        ctx.save();
+        ctx.translate(cw/2, ch/2);
+        ctx.rotate(-Math.PI/6); // เอียงเล็กน้อย
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'rgba(0,0,0,0.12)';
+        ctx.font = `bold ${fontSize}px Prompt, sans-serif`;
+        // ซ้ำ 3 แถวพอให้เห็นทั่วภาพ
+        const step = fontSize * 2.2;
+        for(let y=-step; y<=step; y+=step){
+          ctx.fillText(watermarkText, 0, y);
+        }
+        ctx.restore();
+      }
+    
+      return canvas.toDataURL(mime, quality);
+    }
+
+    
     document.addEventListener('DOMContentLoaded', () => {
       const loginForm = $('#loginForm');
       const usernameInput = $('#username');
@@ -319,6 +396,33 @@
       const successModal = $('#successModal');
       const welcomeMessage = $('#welcomeMessage');
       const closeModalBtn = $('#closeModal');
+
+      // เก็บ DataURL ที่พร้อมอัปโหลด
+      let idcardPreviewDataURL = null;      // (มีลายน้ำ)
+      let portraitPreviewDataURL = null;    // (ไม่มีลายน้ำ)
+      
+      const idcardInput    = $('#idcard_input');
+      const idcardPreview  = $('#idcard_preview');
+      const portraitInput  = $('#portrait_input');
+      const portraitPreview= $('#portrait_preview');
+      
+      // พรีวิว + ใส่ลายน้ำ
+      idcardInput.addEventListener('change', async () => {
+        const f = idcardInput.files?.[0];
+        if(!f) return;
+        const wmText = 'กวห.รพ.ภูมิพลอดุลยเดช พอ.';
+        idcardPreviewDataURL = await makeDataURLWithOptionalWatermark(f, { watermarkText: wmText });
+        idcardPreview.src = idcardPreviewDataURL;
+      });
+      
+      // พรีวิวอย่างเดียว (ไม่ใส่ลายน้ำ)
+      portraitInput.addEventListener('change', async () => {
+        const f = portraitInput.files?.[0];
+        if(!f) return;
+        portraitPreviewDataURL = await makeDataURLWithOptionalWatermark(f, { watermarkText: '' });
+        portraitPreview.src = portraitPreviewDataURL;
+      });
+
 
       // Quick buttons
       $('#openInternalReg').addEventListener('click', ()=> openModal('internalModal'));
@@ -420,20 +524,34 @@
         const fd = new FormData(f);
         const form = Object.fromEntries(fd.entries());
         if(form.password !== form.confirm){ Toast.show('รหัสผ่านไม่ตรงกัน','error'); return; }
-
+      
         const idFile = fd.get('idcard_img');
         const faceFile = fd.get('portrait_img');
         if(!(idFile && idFile.size) || !(faceFile && faceFile.size)){
           Toast.show('กรุณาอัปโหลดภาพให้ครบ','error'); return;
         }
-
+      
         const btn = e.currentTarget;
         setLoading(btn, true, 'กำลังอัปโหลด...');
+      
         try{
-          const idObj = await fileToBase64(idFile);
-          const faceObj = await fileToBase64(faceFile);
-          const payload = { ...form, idcard_img: idObj, portrait_img: faceObj };
-
+          // ถ้า user ยังไม่เปลี่ยนไฟล์หลังโหลดหน้า ให้สร้าง DataURL ตอนนี้
+          if(!idcardPreviewDataURL){
+            idcardPreviewDataURL = await makeDataURLWithOptionalWatermark(idFile, { watermarkText: 'กวห.รพ.ภูมิพลอดุลยเดช พอ.' });
+          }
+          if(!portraitPreviewDataURL){
+            portraitPreviewDataURL = await makeDataURLWithOptionalWatermark(faceFile, { watermarkText: '' });
+          }
+      
+          // แปลง DataURL → {base64, mimeType, filename}
+          const [idMime, idBase64]   = idcardPreviewDataURL.split(';base64,');
+          const [pfMime, pfBase64]   = portraitPreviewDataURL.split(';base64,');
+          const payload = {
+            ...form,
+            idcard_img:   { base64: idBase64, mimeType: idMime.replace('data:', ''), filename: idFile.name || 'idcard.jpg' },
+            portrait_img: { base64: pfBase64, mimeType: pfMime.replace('data:', ''), filename: faceFile.name || 'portrait.jpg' }
+          };
+      
           const res = await fetch(`${API_BASE}?route=register_external`, {
             method: 'POST',
             headers: {'Content-Type':'text/plain;charset=utf-8'},
@@ -449,8 +567,11 @@
         }catch(err){
           console.error(err);
           Toast.show('ไม่สามารถส่งคำขอได้','error');
-        }finally{ setLoading(btn, false); }
+        }finally{
+          setLoading(btn, false);
+        }
       });
+
 
       // ===== Forgot Password =====
       $('#btnForgotSubmit').addEventListener('click', async (e)=>{
