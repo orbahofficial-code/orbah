@@ -1431,129 +1431,203 @@ $('#btnStopCamera')?.addEventListener('click', ()=> stopScanner(true));
   }
 
   
-  // ---- Admin Manage Tab ----
-  let __manageBooted = false;
-  
-  function ymd(d){
-    const dt = d instanceof Date ? d : new Date(d);
-    const mm = String(dt.getMonth()+1).padStart(2,'0');
-    const dd = String(dt.getDate()).padStart(2,'0');
-    return `${dt.getFullYear()}-${mm}-${dd}`;
+ // ---- Admin Manage Tab ----
+let __manageBooted = false;
+
+function ymd(d){
+  const dt = d instanceof Date ? d : new Date(d);
+  const mm = String(dt.getMonth()+1).padStart(2,'0');
+  const dd = String(dt.getDate()).padStart(2,'0');
+  return `${dt.getFullYear()}-${mm}-${dd}`;
+}
+function fmt(dt){
+  if(!dt) return '-';
+  const d = new Date(dt);
+  if (isNaN(d)) return String(dt||'-');
+  return d.toLocaleString();
+}
+function diffHuman(start,end){
+  if(!start) return '-';
+  const s = new Date(start).getTime();
+  const e = end ? new Date(end).getTime() : Date.now();
+  if(isNaN(s)||isNaN(e)) return '-';
+  let mins = Math.max(0, Math.round((e-s)/60000));
+  const h = Math.floor(mins/60); mins = mins%60;
+  return (h?`${h} ชม `:'') + `${mins} นาที`;
+}
+
+/* ====== NEW: สร้างกรอบสโครลเฉพาะตาราง + ใส่ colgroup กำหนดความกว้าง ====== */
+const MG_COL_WIDTHS = [
+  170, // วันที่สร้าง
+  200, // ชื่อ-นามสกุล
+  220, // บริษัท/หน่วยงาน
+  280, // งาน/ภารกิจ  (อนุญาตตัดบรรทัด)
+  140, // ห้อง
+  120, // สถานะ
+  240, // ผู้เช็คอิน + เวลา
+  240, // ผู้เช็คเอาต์ + เวลา
+  130  // ระยะเวลา
+];
+
+function ensureManageTableFrame(){
+  const tb = document.getElementById('mgTbody');
+  if(!tb) return null;
+  const table = tb.closest('table');
+  if(!table) return null;
+
+  // ห่อด้วยกรอบเลื่อน ถ้ายังไม่ได้ถูกห่อ
+  let frame = document.getElementById('mgTableFrame');
+  if(!frame){
+    frame = document.createElement('div');
+    frame.id = 'mgTableFrame';
+    frame.className = 'overflow-auto rounded-lg border';
+    frame.style.maxHeight = '65dvh';       // สูงสุด ~65% ของหน้าจอมือถือ
+    frame.style.contain = 'content';       // ลด reflow กระทบภายนอก
+    // ย้าย table เข้าไปใน frame (แทนที่ตำแหน่งเดิม)
+    const parent = table.parentNode;
+    parent.insertBefore(frame, table);
+    frame.appendChild(table);
   }
-  function fmt(dt){
-    if(!dt) return '-';
-    const d = new Date(dt);
-    if (isNaN(d)) return String(dt||'-');
-    return d.toLocaleString();
+
+  // บังคับให้ตารางกว้างพอจะเลื่อนแนวนอน (ถ้าจอแคบ)
+  table.style.minWidth = MG_COL_WIDTHS.reduce((a,b)=>a+b, 0) + 64 + 'px'; // padding margin เผื่ออีกนิด
+  table.style.width = '100%';
+  table.style.tableLayout = 'auto';
+
+  // สร้าง/อัปเดต colgroup กำหนดความกว้างคอลัมน์
+  let colgroup = table.querySelector('colgroup#mgColgroup');
+  if(!colgroup){
+    colgroup = document.createElement('colgroup');
+    colgroup.id = 'mgColgroup';
+    table.insertBefore(colgroup, table.firstElementChild); // วางก่อน thead
   }
-  function diffHuman(start,end){
-    if(!start) return '-';
-    const s = new Date(start).getTime();
-    const e = end ? new Date(end).getTime() : Date.now();
-    if(isNaN(s)||isNaN(e)) return '-';
-    let mins = Math.max(0, Math.round((e-s)/60000));
-    const h = Math.floor(mins/60); mins = mins%60;
-    return (h?`${h} ชม `:'') + `${mins} นาที`;
-  }
-  
-  async function fetchAdminSummary(params){
-    const res = await apiPost('work_admin_summary', params);
-    if(!res?.ok) throw new Error(res?.message || 'โหลดสรุปล้มเหลว');
-    return res.summary || { total:0, pending:0, active:0, done:0 };
-  }
-  
-  async function fetchAdminList(params){
-    const res = await apiPost('work_admin_list', params);
-    if(!res?.ok) throw new Error(res?.message || 'โหลดรายการล้มเหลว');
-    return res.rows || [];
-  }
-  
-  async function loadManage(){
-    // เก็บค่าฟิลเตอร์
-    const from = $('#mgFrom')?.value || ymd(new Date());
-    const to   = $('#mgTo')?.value   || ymd(new Date());
-    const status = $('#mgStatus')?.value || 'all';
-    const role   = $('#mgRole')?.value || 'external';
-    const q      = $('#mgQuery')?.value?.trim() || '';
-  
-    // เรียก API
-    const [summary, rows] = await Promise.all([
-      fetchAdminSummary({ from, to, status, role, q }),
-      fetchAdminList({ from, to, status, role, q })
-    ]);
-  
-    // สรุป
-    $('#sumTotal').textContent   = summary.total ?? rows.length;
-    $('#sumPending').textContent = summary.pending ?? 0;
-    $('#sumActive').textContent  = summary.active ?? 0;
-    $('#sumDone').textContent    = summary.done ?? 0;
-  
-    // ตาราง
-    const tb = $('#mgTbody');
-    tb.innerHTML = '';
-    if (!rows.length){
-      tb.innerHTML = `<tr><td class="py-3 text-gray-400" colspan="9">ไม่พบข้อมูลตามเงื่อนไข</td></tr>`;
-      return;
-    }
-    const frag = document.createDocumentFragment();
-    rows.forEach(r=>{
-      const tr = document.createElement('tr');
-      tr.className = 'border-b';
-      const isActive = (r.status==='checked' && !r.checkout_time);
-      tr.innerHTML = `
-        <td class="py-2 pr-4">${fmt(r.created_at)}</td>
-        <td class="py-2 pr-4">${r.fullname||'-'}</td>
-        <td class="py-2 pr-4">${r.company||r.workplace||'-'}</td>
-        <td class="py-2 pr-4">${r.task||'-'}</td>
-        <td class="py-2 pr-4">${r.room||'-'}</td>
-        <td class="py-2 pr-4">
-          <span class="px-2 py-0.5 pill text-xs ${r.status==='done'?'bg-indigo-100 text-indigo-700': isActive?'bg-emerald-100 text-emerald-700' : r.status==='pending'?'bg-amber-100 text-amber-700':'bg-gray-100 text-gray-700'}">
-            ${r.status||'-'}
-          </span>
-        </td>
-        <td class="py-2 pr-4">
-          <div>${r.checkin_by_name||'-'}</div>
-          <div class="text-xs text-gray-500">${fmt(r.checkin_time)}</div>
-        </td>
-        <td class="py-2 pr-4">
-          <div>${r.checkout_by_name||'-'}</div>
-          <div class="text-xs text-gray-500">${fmt(r.checkout_time)}</div>
-        </td>
-        <td class="py-2">${diffHuman(r.checkin_time, r.checkout_time)}</td>
-      `;
-      frag.appendChild(tr);
-    });
-    tb.appendChild(frag);
-  }
-  
-  function bootManageTabOnce(){
-    if (__manageBooted) return;
-    __manageBooted = true;
-  
-    // ค่าเริ่มต้นเป็นวันนี้
-    const today = ymd(new Date());
-    if($('#mgFrom')) $('#mgFrom').value = today;
-    if($('#mgTo'))   $('#mgTo').value   = today;
-  
-    // listener ฟิลเตอร์
-    ['mgFrom','mgTo','mgStatus','mgRole'].forEach(id=>{
-      $('#'+id)?.addEventListener('change', ()=> loadManage().catch(err=>Toast.show(err.message,'error')));
-    });
-    let qTimer = null;
-    $('#mgQuery')?.addEventListener('input', ()=>{
-      clearTimeout(qTimer);
-      qTimer = setTimeout(()=> loadManage().catch(err=>Toast.show(err.message,'error')), 300);
-    });
-    $('#mgRefresh')?.addEventListener('click', ()=> loadManage().catch(err=>Toast.show(err.message,'error')));
-  
-    // โหลดรอบแรก
-    loadManage().catch(err=>Toast.show(err.message,'error'));
-  }
-  
-  // โหลดเมื่อสลับมาที่แท็บ manage
-  document.addEventListener('tabchange', (e)=>{
-    if (e?.detail?.tab === 'manage') bootManageTabOnce();
+  // เคลียร์แล้วสร้างใหม่ตามจำนวนคอลัมน์
+  colgroup.innerHTML = '';
+  MG_COL_WIDTHS.forEach(w=>{
+    const col = document.createElement('col');
+    col.style.minWidth = w + 'px';
+    colgroup.appendChild(col);
   });
+
+  return { frame, table };
+}
+
+/* ====== API ====== */
+async function fetchAdminSummary(params){
+  const res = await apiPost('work_admin_summary', params);
+  if(!res?.ok) throw new Error(res?.message || 'โหลดสรุปล้มเหลว');
+  return res.summary || { total:0, pending:0, active:0, done:0 };
+}
+
+async function fetchAdminList(params){
+  const res = await apiPost('work_admin_list', params);
+  if(!res?.ok) throw new Error(res?.message || 'โหลดรายการล้มเหลว');
+  return res.rows || [];
+}
+
+async function loadManage(){
+  // เก็บค่าฟิลเตอร์
+  const from = $('#mgFrom')?.value || ymd(new Date());
+  const to   = $('#mgTo')?.value   || ymd(new Date());
+  const status = $('#mgStatus')?.value || 'all';
+  const role   = $('#mgRole')?.value || 'external';
+  const q      = $('#mgQuery')?.value?.trim() || '';
+
+  // อัปเดตเลย์เอาต์ตารางให้เรียบร้อย (กรอบสโครล + colgroup)
+  ensureManageTableFrame();
+
+  // เรียก API พร้อมกัน
+  const [summary, rows] = await Promise.all([
+    fetchAdminSummary({ from, to, status, role, q }),
+    fetchAdminList({ from, to, status, role, q })
+  ]);
+
+  // สรุป
+  $('#sumTotal').textContent   = summary.total ?? rows.length;
+  $('#sumPending').textContent = summary.pending ?? 0;
+  $('#sumActive').textContent  = summary.active ?? 0;
+  $('#sumDone').textContent    = summary.done ?? 0;
+
+  // ตาราง
+  const tb = $('#mgTbody');
+  tb.innerHTML = '';
+  if (!rows.length){
+    tb.innerHTML = `<tr><td class="py-3 px-3 text-gray-400" colspan="9">ไม่พบข้อมูลตามเงื่อนไข</td></tr>`;
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  rows.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.className = 'border-b align-top'; // align-top กันบรรทัดสูงไม่เขย่า
+
+    const isActive = (r.status==='checked' && !r.checkout_time);
+
+    // helper สร้างเซลล์แบบ no-wrap + มี title ให้อ่านเต็มเมื่อ hover
+    const tdNowrap = (html, title) =>
+      `<td class="py-2 pr-4 whitespace-nowrap" title="${(title ?? html).toString().replace(/"/g,'&quot;')}">${html}</td>`;
+
+    tr.innerHTML = `
+      ${tdNowrap(fmt(r.created_at), r.created_at)}
+      ${tdNowrap(r.fullname||'-')}
+      ${tdNowrap(r.company||r.workplace||'-')}
+      <td class="py-2 pr-4">${r.task ? String(r.task) : '-'}</td>  <!-- อนุญาตตัดบรรทัด -->
+      ${tdNowrap(r.room||'-')}
+      ${tdNowrap(`
+        <span class="px-2 py-0.5 pill text-xs ${r.status==='done'
+          ?'bg-indigo-100 text-indigo-700'
+          : isActive
+            ?'bg-emerald-100 text-emerald-700'
+            : r.status==='pending'
+              ?'bg-amber-100 text-amber-700'
+              :'bg-gray-100 text-gray-700'}">${r.status||'-'}</span>
+      `, r.status||'-')}
+      ${tdNowrap(`
+        <div>${r.checkin_by_name||'-'}</div>
+        <div class="text-xs text-gray-500">${fmt(r.checkin_time)}</div>
+      `, (r.checkin_by_name||'-') + ' ' + (fmt(r.checkin_time)||''))}
+      ${tdNowrap(`
+        <div>${r.checkout_by_name||'-'}</div>
+        <div class="text-xs text-gray-500">${fmt(r.checkout_time)}</div>
+      `, (r.checkout_by_name||'-') + ' ' + (fmt(r.checkout_time)||''))}
+      ${tdNowrap(diffHuman(r.checkin_time, r.checkout_time))}
+    `;
+    frag.appendChild(tr);
+  });
+  tb.appendChild(frag);
+}
+
+function bootManageTabOnce(){
+  if (__manageBooted) return;
+  __manageBooted = true;
+
+  // ค่าเริ่มต้นเป็นวันนี้
+  const today = ymd(new Date());
+  if($('#mgFrom')) $('#mgFrom').value = today;
+  if($('#mgTo'))   $('#mgTo').value   = today;
+
+  // ทำโครงตารางให้พร้อมสโครลตั้งแต่แรก
+  ensureManageTableFrame();
+
+  // listener ฟิลเตอร์
+  ['mgFrom','mgTo','mgStatus','mgRole'].forEach(id=>{
+    $('#'+id)?.addEventListener('change', ()=> loadManage().catch(err=>Toast.show(err.message,'error')));
+  });
+  let qTimer = null;
+  $('#mgQuery')?.addEventListener('input', ()=>{
+    clearTimeout(qTimer);
+    qTimer = setTimeout(()=> loadManage().catch(err=>Toast.show(err.message,'error')), 300);
+  });
+  $('#mgRefresh')?.addEventListener('click', ()=> loadManage().catch(err=>Toast.show(err.message,'error')));
+
+  // โหลดรอบแรก
+  loadManage().catch(err=>Toast.show(err.message,'error'));
+}
+
+// โหลดเมื่อสลับมาที่แท็บ manage
+document.addEventListener('tabchange', (e)=>{
+  if (e?.detail?.tab === 'manage') bootManageTabOnce();
+});
 
 </script>
 </body>
