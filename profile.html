@@ -199,15 +199,14 @@
       <!-- Sidebar -->
       <aside class="card bg-white p-4">
         <div class="flex items-center gap-3 mb-4">
-          <div class="w-14 h-14 rounded-full overflow-hidden avatar-ring">
+          <div class="w-14 h-14 rounded-full overflow-hidden avatar-ring ring-1 ring-gray-200">
             <img
               data-bind="avatar"
-              id="avatar"
+              id="sidebarAvatar"
               class="w-full h-full object-cover"
               alt="Profile"
               loading="lazy"
-              decoding="async"
-              onerror="this.onerror=null;this.src='https://placehold.co/112x112/png?text=PROFILE';">
+              decoding="async">
           </div>
           <div>
             <div class="text-sm font-semibold text-gray-800" data-bind="fullname">ชื่อ-นามสกุล</div>
@@ -237,8 +236,14 @@
         <div class="card bg-white p-6">
           <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div class="flex items-center gap-4">
-              <div class="w-24 h-24 rounded-full overflow-hidden avatar-ring">
-                <img data-bind="avatar" id="avatar" class="w-24 h-24 rounded-full object-cover border" alt="Profile">
+              <div class="w-24 h-24 rounded-full overflow-hidden avatar-ring ring-1 ring-gray-200">
+                <img
+                  data-bind="avatar"
+                  id="headerAvatar"
+                  class="w-full h-full object-cover"
+                  alt="Profile"
+                  loading="lazy"
+                  decoding="async">
               </div>
               <div>
                 <div class="flex items-center gap-2">
@@ -249,6 +254,7 @@
                 <p class="text-xs text-gray-400 mt-1">ชื่อผู้ใช้งาน: <span class="font-medium" data-bind="username">username</span></p>
               </div>
             </div>
+        
             <div class="flex items-center gap-2">
               <label class="px-3 py-2 pill border border-gray-300 text-sm bg-white cursor-pointer hover:bg-gray-50">
                 <i class="fa-solid fa-camera mr-1"></i> อัปโหลดรูปโปรไฟล์
@@ -260,6 +266,7 @@
             </div>
           </div>
         </div>
+
 
         <!-- Overview -->
         <div class="card bg-white p-6" data-pane="overview">
@@ -727,12 +734,45 @@ document.addEventListener('click', (e)=>{
 
 
 // ช่วยตั้งรูปที่จุดเดียว
+// --- เพิ่ม helper 2 ฟังก์ชันนี้ ---
+function normalizeDriveUrl(url){
+  if(!url) return '';
+  const m1 = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  const m2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  const id = (m1 && m1[1]) || (m2 && m2[1]);
+  return id ? `https://drive.google.com/uc?export=view&id=${id}` : url;
+}
+function bustCache(url){
+  if(!url) return '';
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}v=${Date.now()}`;
+}
+
+// --- ปรับ setAvatarSrc ให้ fallback อัตโนมัติถ้าโหลดรูปไม่สำเร็จ (เรียกครั้งเดียว) ---
 function setAvatarSrc(src){
   if(!src) return false;
-  $$('img[data-bind="avatar"]').forEach(img => { img.src = src; });
+  $$('img[data-bind="avatar"]').forEach(img => {
+    // กันวนลูป: ผูก onerror แค่ครั้งเดียว
+    if(!img.__avatarErrBound){
+      img.__avatarErrBound = true;
+      img.addEventListener('error', async () => {
+        // ตัด onerror ทิ้งกันลูป แล้วลอง fallback
+        img.onerror = null;
+        const u = localStorage.getItem('username') || '';
+        if (u) {
+          const ok = await loadAvatarFallback(u);
+          if (!ok) img.src = 'https://placehold.co/240x240/png?text=PROFILE';
+        } else {
+          img.src = 'https://placehold.co/240x240/png?text=PROFILE';
+        }
+      }, { once:true });
+    }
+    img.src = src;
+  });
   return true;
 }
 
+// --- loadAvatarFallback: ใช้ได้เลยของเดิม ---
 async function loadAvatarFallback(username){
   try{
     const res = await fetch(`${API_BASE}?route=get_profile_photo&username=${encodeURIComponent(username)}`, {
@@ -749,16 +789,19 @@ async function loadAvatarFallback(username){
   return false;
 }
 
+// --- ปรับเฉพาะบล็อก avatar ใน bindData ---
 function bindData(data){
   $$('[data-bind]').forEach(el=>{
     const key = el.getAttribute('data-bind');
 
     if(key === 'avatar'){
-      // 1) URL ตรง
-      if (setAvatarSrc(data.avatar_url)) return;
-
-      // 2) data URL ตรง
-      if (setAvatarSrc(data.avatar_data_url)) return;
+      // 1) URL (รองรับลิงก์ Drive แบบ viewer ด้วย)
+      if (data.avatar_url) {
+        const url = bustCache(normalizeDriveUrl(data.avatar_url));
+        if (setAvatarSrc(url)) return;
+      }
+      // 2) data URL
+      if (data.avatar_data_url && setAvatarSrc(data.avatar_data_url)) return;
 
       // 3) คู่ mime + base64
       if (data.avatar_base64){
@@ -766,7 +809,7 @@ function bindData(data){
         if (setAvatarSrc(`data:${mime};base64,${data.avatar_base64}`)) return;
       }
 
-      // 4) ไม่มีใน payload: ใส่ placeholder ชั่วคราว แล้วไปโหลดแบบ fallback
+      // 4) ไม่มีใน payload -> ใส่ placeholder แล้วยิง fallback
       setAvatarSrc('https://placehold.co/240x240/png?text=PROFILE');
       const username = localStorage.getItem('username') || data.username || '';
       if (username) loadAvatarFallback(username);
