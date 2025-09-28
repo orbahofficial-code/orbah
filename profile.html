@@ -82,54 +82,61 @@
     overflow: hidden;          /* ซ่อนสโครลหลักของการ์ด */
   }
 
-  /* กล่องตาราง: สโครลเฉพาะส่วนนี้ */
-  .manage-table-wrap{
-    flex: 1;                   /* กินพื้นที่ที่เหลือใน .manage-card */
-    min-height: 0;             /* ป้องกัน flex overflow */
-    overflow: auto;            /* สโครลแนวตั้ง/แนวนอนเฉพาะตาราง */
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.75rem;    /* rounded-xl */
-    background: #fff;
-  }
+  /* กล่องตาราง: ให้เลื่อนทั้งแนวตั้งและแนวนอน */
+.manage-table-wrap{
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;           /* <-- เพิ่มย้ำแนวนอน */
+  overflow-y: auto;           /* แนวตั้ง */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  background: #fff;
+}
 
-  /* ตารางภายใน */
-  #mgTable{
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-  }
-  .table-nowrap{ white-space: nowrap; }
+/* ตารางด้านใน: ให้กว้างเท่าที่คอลัมน์ต้องการ แล้วค่อยเลื่อนข้าง */
+#mgTable{
+  width: max-content;         /* <-- สำคัญ: ให้ตารางกว้างเท่าคอนเทนต์จริง */
+  min-width: 100%;            /* แต่ไม่เล็กกว่าโครงการ์ด */
+  border-collapse: separate;
+  border-spacing: 0;
+}
 
-  /* ทำหัวตาราง sticky */
-  #mgTable thead th{
-    position: sticky;
-    top: 0;
-    background: #ffffff;
-    z-index: 1;
-    box-shadow: 0 1px 0 0 rgba(0,0,0,.06);
-  }
+/* กันคอลัมน์เบียดแนวนอนขั้นต่ำ (จะถูกแทนที่โดย width:max-content หากกว้างกว่า) */
+#mgTableFrame{ min-width: 960px; }
 
-  /* เว้นความกว้างขั้นต่ำ กันคอลัมน์เบียด และให้เลื่อนแนวนอนได้เมื่อจำเป็น */
-  #mgTableFrame{ min-width: 960px; }
+/* ไม่ตัดบรรทัดในตาราง (ช่วยให้เกิดเลื่อนข้าง) */
+.table-nowrap{ white-space: nowrap; }
 
-  /* ช่องตาราง */
-  #mgTable th, #mgTable td{
-    padding: 0.75rem 1rem;          /* .py-3 .px-4 */
-    border-bottom: 1px solid #e5e7eb;
-    vertical-align: top;
-  }
-  #mgTable tbody tr:hover{ background:#f9fafb; }
+/* header sticky ขณะเลื่อน (ใช้ได้ทั้งแนวตั้ง/แนวนอน) */
+#mgTable thead th{
+  position: sticky;
+  top: 0;
+  background: #ffffff;
+  z-index: 1;
+  box-shadow: 0 1px 0 0 rgba(0,0,0,.06);
+}
 
-  /* (ถ้าต้องการคอลัมน์แรก sticky ซ้าย เพิ่มบล็อกนี้และปรับความกว้างให้เหมาะ)
-  #mgTable th:first-child, 
-  #mgTable td:first-child{
-    position: sticky;
-    left: 0;
-    background: #fff;
-    z-index: 2;
-  } */
+/* ช่องตาราง */
+#mgTable th, #mgTable td{
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  vertical-align: top;
+}
+
+/* สวยงาม: สไตล์สกอร์ลบาร์แนวนอน (เฉพาะ WebKit/Chromium) */
+.manage-table-wrap::-webkit-scrollbar{
+  height: 10px;
+}
+.manage-table-wrap::-webkit-scrollbar-thumb{
+  background: #c7cdd6;
+  border-radius: 9999px;
+}
+.manage-table-wrap::-webkit-scrollbar-track{
+  background: transparent;
+}
+
 </style>
 
 </head>
