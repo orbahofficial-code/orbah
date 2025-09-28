@@ -565,11 +565,12 @@
   // ===== CONFIG =====
   const API_BASE = "https://script.google.com/macros/s/AKfycbzK9QDRUSEq5U18Pwa40TWA-f4NrGx1CR2xqtnHBRgMQ3kSP1LfaJDMZPRc4evwuww-/exec";
   const ROLE_TABS = {
-    admin: ["overview","profile","work","security","activity","scan"],
+    admin: ["overview","profile","work","security","activity","scan","manage"], 
     "hospital-staff": ["overview","profile","work","activity"],
     external: ["overview","profile","work"],
     "or-staff": ["overview","scan","activity"]
   };
+
 
   // ===== Helpers =====
   const $  = (sel, root=document) => root.querySelector(sel);
@@ -587,13 +588,6 @@
       setTimeout(()=>{ item.style.opacity="0"; item.style.transform="translateY(-6px)"; }, timeout-350);
       setTimeout(()=> item.remove(), timeout);
     }
-  };
-
-  const ROLE_TABS = {
-    admin: ["overview","profile","work","security","activity","scan","manage"],
-    "hospital-staff": ["overview","profile","work","activity"],
-    external: ["overview","profile","work"],
-    "or-staff": ["overview","scan","activity"]
   };
 
   function openModal(id){
