@@ -100,7 +100,42 @@
       -webkit-overflow-scrolling: touch;
       margin: auto;                     /* จัดกลางเสมอ */
     }
+
+
+    /* กรอบสโครลเฉพาะตาราง */
+    #mgTableFrame{
+      max-height: 65dvh;               /* สูงสุด ~65% หน้าจอมือถือ */
+      overflow: auto;                  /* เลื่อนทั้งแนวตั้ง/นอน */
+      border: 1px solid #e5e7eb;       /* เท่ากับ border-gray-200 */
+      border-radius: 0.75rem;          /* rounded-lg */
+    }
     
+    /* หัวตารางติดบนขณะเลื่อน */
+    #mgTable thead th{
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #fff;                /* กันโปร่ง */
+    }
+    
+    /* ไม่ตัดคำในคอลัมน์สำคัญ */
+    .table-nowrap th,
+    .table-nowrap td{
+      white-space: nowrap;
+    }
+    
+    /* อนุญาตให้ตัดบรรทัดเฉพาะคอลัมน์ "งาน/ภารกิจ" */
+    td.col-task{
+      white-space: normal;
+      word-break: break-word;
+    }
+    
+    /* กันตัวตารางชิดเกินไปบนจอเล็ก */
+    #mgTable{
+      min-width: 1380px;               /* บังคับให้มีสโครลแนวนอนถ้าจอแคบ */
+      table-layout: auto;
+    }
+
 
   </style>
 </head>
@@ -362,29 +397,42 @@
             </div>
           </div>
         
-          <!-- Table -->
-          <div class="overflow-x-auto">
-            <table class="min-w-full text-sm">
-              <thead>
-                <tr class="text-left text-gray-500 border-b">
-                  <th class="py-2 pr-4">เริ่ม (created)</th>
-                  <th class="py-2 pr-4">ชื่อ</th>
-                  <th class="py-2 pr-4">หน่วยงาน</th>
-                  <th class="py-2 pr-4">งาน</th>
-                  <th class="py-2 pr-4">ห้อง</th>
-                  <th class="py-2 pr-4">สถานะ</th>
-                  <th class="py-2 pr-4">เช็คอินโดย/เวลา</th>
-                  <th class="py-2 pr-4">เช็คเอาต์โดย/เวลา</th>
-                  <th class="py-2">ระยะเวลา</th>
-                </tr>
-              </thead>
-              <tbody id="mgTbody" class="text-gray-800">
-                <tr><td class="py-3 text-gray-400" colspan="9">ไม่มีข้อมูล</td></tr>
-              </tbody>
-            </table>
-          </div>
+     
+        <!-- Table -->
+        <div id="mgTableFrame" class="overflow-auto rounded-lg">
+          <table id="mgTable" class="min-w-full text-sm table-nowrap">
+            <!-- คุมความกว้างคอลัมน์ (อ่านง่ายขึ้น) -->
+            <colgroup>
+              <col style="min-width:170px"><!-- เริ่ม -->
+              <col style="min-width:200px"><!-- ชื่อ -->
+              <col style="min-width:220px"><!-- หน่วยงาน -->
+              <col style="min-width:300px"><!-- งาน (ยอมตัดบรรทัด) -->
+              <col style="min-width:140px"><!-- ห้อง -->
+              <col style="min-width:120px"><!-- สถานะ -->
+              <col style="min-width:240px"><!-- เช็คอินโดย/เวลา -->
+              <col style="min-width:240px"><!-- เช็คเอาต์โดย/เวลา -->
+              <col style="min-width:130px"><!-- ระยะเวลา -->
+            </colgroup>
+        
+            <thead>
+              <tr class="text-left text-gray-500 border-b">
+                <th class="py-2 px-3">เริ่ม (created)</th>
+                <th class="py-2 px-3">ชื่อ</th>
+                <th class="py-2 px-3">หน่วยงาน</th>
+                <th class="py-2 px-3">งาน</th>
+                <th class="py-2 px-3">ห้อง</th>
+                <th class="py-2 px-3">สถานะ</th>
+                <th class="py-2 px-3">เช็คอินโดย/เวลา</th>
+                <th class="py-2 px-3">เช็คเอาต์โดย/เวลา</th>
+                <th class="py-2 px-3">ระยะเวลา</th>
+              </tr>
+            </thead>
+        
+            <tbody id="mgTbody" class="text-gray-800">
+              <tr><td class="py-3 px-3 text-gray-400" colspan="9">ไม่มีข้อมูล</td></tr>
+            </tbody>
+          </table>
         </div>
-
 
       <!-- Scan (OR staff only) -->
       <div class="card bg-white p-6" data-pane="scan" style="display:none;">
