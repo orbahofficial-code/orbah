@@ -200,13 +200,21 @@
       <aside class="card bg-white p-4">
         <div class="flex items-center gap-3 mb-4">
           <div class="w-14 h-14 rounded-full overflow-hidden avatar-ring">
-            <img data-bind="avatar" id="avatar" class="w-24 h-24 rounded-full object-cover border" alt="Profile">
+            <img
+              data-bind="avatar"
+              id="avatar"
+              class="w-full h-full object-cover"
+              alt="Profile"
+              loading="lazy"
+              decoding="async"
+              onerror="this.onerror=null;this.src='https://placehold.co/112x112/png?text=PROFILE';">
           </div>
           <div>
             <div class="text-sm font-semibold text-gray-800" data-bind="fullname">ชื่อ-นามสกุล</div>
             <div class="text-xs text-gray-500" data-bind="roleLabel">บทบาท</div>
           </div>
         </div>
+
         <nav class="space-y-1 text-sm">
           <a href="#overview" class="sidebar-item active block px-3 py-2 rounded-lg" data-tab="overview"><i class="fa-solid fa-user mr-2"></i> Overview</a>
           <a href="#profile" class="sidebar-item block px-3 py-2 rounded-lg" data-tab="profile"><i class="fa-solid fa-id-card mr-2"></i> ข้อมูลส่วนตัว</a>
