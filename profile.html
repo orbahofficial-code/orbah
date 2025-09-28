@@ -857,20 +857,18 @@ function ensureAuth(){
   return { token, username };
 }
 
-async function apiPost(route, payload){
+async function apiPost(route, payload) {
+  const body = new URLSearchParams({ data: JSON.stringify(payload || {}) }).toString();
   const res = await fetch(`${API_BASE}?route=${encodeURIComponent(route)}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload||{}),
-    cache: 'no-store'
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body
   });
-  let data = {};
-  try { data = await res.json(); } catch(_) {}
-  if(!res.ok || data.ok === false){
-    throw new Error(data?.message || `API error on route ${route}`);
-  }
+  const data = await res.json();
+  if (!res.ok || data.ok === false) throw new Error(data?.message || `API error: ${route}`);
   return data;
 }
+
 
 /* ===== QR ===== */
 function buildQrPayload(profile){ return JSON.stringify({ q: profile.qr_id }); }
