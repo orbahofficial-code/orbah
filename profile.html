@@ -621,46 +621,85 @@
 
   // ===== App =====
   document.addEventListener('DOMContentLoaded', async () => {
-  // ... โค้ดผูกแท็บ/ปุ่มต่าง ๆ ...
-
-  const auth = ensureAuth();
-  if (!auth) {
-    // กันค้างในหน้าเดิม กรณี redirect
-    document.documentElement.classList.remove('app-loading');
-    return;
-  }
-
-  try {
-    const res = await apiPost('get_profile', { username: auth.username });
-    if (!res?.ok || !res.data) throw new Error(res?.message || 'โหลดโปรไฟล์ไม่สำเร็จ');
-
-    const profile = res.data;
-    bindData(profile);
-    window.currentProfile = profile;
-
-    if (profile.fullname) localStorage.setItem('fullname', profile.fullname);
-    if (profile.role)     localStorage.setItem('userRole', profile.role);
-
-    if (typeof configureRoleUI === 'function') {
-      configureRoleUI(profile.role || localStorage.getItem('userRole') || 'external');
-    } else {
-      const firstTab = (location.hash || '#overview').slice(1);
-      setActiveTab(firstTab);
+    // กันถูกผูกซ้ำ (เช่นสคริปต์โหลดสองครั้ง)
+    if (window.__PROFILE_BOOTED__) return;
+    window.__PROFILE_BOOTED__ = true;
+  
+    // Tabs: click
+    $$('.sidebar-item').forEach(a => {
+      a.addEventListener('click', e => {
+        e.preventDefault();
+        const tab = a.getAttribute('data-tab');
+        if (tab) setActiveTab(tab);
+      });
+    });
+  
+    // Tabs: hash
+    window.addEventListener('hashchange', () => {
+      const tab = (location.hash || '#overview').slice(1);
+      setActiveTab(tab);
+    });
+  
+    // Logout: ใช้ delegation ให้ทำงานเสมอ (เผื่อมี overlay/DOM เปลี่ยน)
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('#btnLogout');
+      if (!btn) return;
+      e.preventDefault();
+      try {
+        ['auth_token','userRole','username','fullname','last_work_id']
+          .forEach(k => { localStorage.removeItem(k); sessionStorage.removeItem(k); });
+      } catch(_) {}
+      // กันย้อนกลับด้วย Back
+      location.replace('index.html');
+    });
+  
+    // ต้องมี session
+    const auth = (typeof ensureAuth === 'function') ? ensureAuth() : null;
+    if (!auth) {
+      // ปิดสเกเลตันถ้ามี แล้วออก
+      document.documentElement.classList.remove('app-loading');
+      return;
     }
+  
+    try {
+      const res = await apiPost('get_profile', { username: auth.username });
+      if (!res || res.ok === false || !res.data) {
+        throw new Error(res?.message || 'โหลดโปรไฟล์ไม่สำเร็จ');
+      }
+  
+      const profile = res.data;
+      if (typeof bindData === 'function') bindData(profile);
+      window.currentProfile = profile;
+  
+      if (profile.fullname) localStorage.setItem('fullname', profile.fullname);
+      if (profile.role)     localStorage.setItem('userRole', profile.role);
+  
+      // ตั้งแท็บเริ่มต้น (เคารพ hash)
+      const initialTab = (location.hash || '#overview').slice(1);
+  
+      if (typeof configureRoleUI === 'function') {
+        // ฟังก์ชันนี้จะซ่อน/แสดงแท็บตาม role
+        configureRoleUI(profile.role || localStorage.getItem('userRole') || 'external');
+        // เผื่อบางเวอร์ชันไม่ได้เรียก setActiveTab ภายใน
+        setActiveTab(initialTab);
+      } else {
+        setActiveTab(initialTab);
+      }
+    } catch (err) {
+      console.error(err);
+      if (window.Toast?.show) {
+        Toast.show(err.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้', 'error');
+      } else {
+        alert(err.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้');
+      }
+      // redirect ออกหลังแจ้ง
+      setTimeout(() => location.replace('index.html'), 1200);
+    } finally {
+      // เอา skeleton/placeholder ออกเสมอ ไม่ให้ค้าง
+      document.documentElement.classList.remove('app-loading');
+    }
+  });
 
-    // ✅ ปิด skeleton/placeholder หลังโหลดเสร็จ
-    document.documentElement.classList.remove('app-loading');
-
-  } catch (err) {
-    console.error(err);
-    Toast.show(err.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
-
-    // ✅ ปิด skeleton กรณี error ด้วย
-    document.documentElement.classList.remove('app-loading');
-
-    setTimeout(() => (window.location.href = 'index.html'), 1200);
-  }
-});
 
 
   // อัปโหลดรูปโปรไฟล์
