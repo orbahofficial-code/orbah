@@ -17,122 +17,89 @@
   <script>document.documentElement.classList.add('app-loading');</script>
 
 
-  <style>
-    /* รีเซ็ตเล็กน้อยกันจอ “ไหลข้าง” */
-    * { box-sizing: border-box; }
-    html, body { width: 100%; }
-    
-    /* โหมดมือถือสไตล์แอป: ให้ทั้งหน้าเป็น app shell เดียว */
-    html, body {
-      height: 100%;
-      overflow: hidden;                 /* ตัวหน้าไม่เลื่อน */
-      overscroll-behavior: none;        /* กัน bounce/scroll chaining */
-      -webkit-font-smoothing: antialiased;
-      -webkit-text-size-adjust: 100%;
-    }
-    
-    /* ใช้ body เป็น shell แนวตั้ง แล้วให้ main เป็นพื้นที่เลื่อนแทน */
-    body {
-      display: flex;
-      flex-direction: column;
-      min-height: 100dvh;               /* รองรับแถบ address บนมือถือ */
-      min-height: 100svh;               /* iOS 16+ small viewport */
-      font-family: 'Prompt', sans-serif;
-      background: linear-gradient(135deg,#eef2ff 0%,#f8fafc 100%);
-      overflow-x: hidden;               /* กันไหลข้าง */
-    }
-    
-    /* header ติดบน, รองรับ safe-area */
-    header {
-      position: sticky;
-      top: 0;
-      z-index: 40;
-      padding-top: env(safe-area-inset-top);
-      backdrop-filter: saturate(180%) blur(8px);
-      -webkit-backdrop-filter: saturate(180%) blur(8px);
-    }
-    
-    /* main เป็นคอลัมน์เลื่อนหลักเพียงที่เดียว */
-    main {
-      flex: 1;
-      min-height: 0;                    /* สำคัญ: ให้ลูกสูงไม่ดัน */
-      overflow-y: auto;                 /* เลื่อนเฉพาะตรงนี้ */
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior-y: contain;   /* กันสโครลหลุดไปทั้งหน้า */
-      padding-bottom: max(16px, env(safe-area-inset-bottom));
-    }
-    
-    /* การ์ด/สไตล์เดิม */
-    :root{ --card-radius: 1rem; }
-    .card{ border-radius: var(--card-radius); box-shadow: 0 20px 50px -20px rgba(0,0,0,.15); }
-    .avatar-ring{ box-shadow: 0 0 0 4px #fff, 0 0 0 6px rgba(59,130,246,.6); }
-    .pill{ border-radius: 9999px; }
-    .sidebar-item.active{ background: #eef2ff; color: #1d4ed8; font-weight: 600; }
-    .grid-def{ grid-template-columns: 1fr 1fr; }
-    @media (max-width: 1024px){ .grid-def{ grid-template-columns: 1fr; } }
-    .toast{ position:fixed; right:16px; top:16px; z-index:60; display:flex; flex-direction:column; gap:10px; }
-    .toast-item{ background:#111827; color:#fff; padding:12px 14px; border-radius:12px; box-shadow:0 10px 20px -10px rgba(0,0,0,.3); min-width:260px; display:flex; gap:10px; }
-    
-    /* Skeleton ระหว่างโหลด: ซ่อน main จริง */
-    html.app-loading main { opacity: 0; pointer-events: none; }
-    #page-skeleton { display: none; }
-    html.app-loading #page-skeleton { display: block; }
-    
-    /* ===== Modal: ล็อกพื้นหลัง และให้การ์ดเลื่อนในตัวเองได้ ===== */
-    body.modal-open { overflow: hidden; } /* เผื่อมี fallback บางเบราว์เซอร์ */
-    
-    .modal{
-      position: fixed; inset: 0; display: none;
-      align-items: center; justify-content: center;
-      background: rgba(0,0,0,.55); z-index: 50;
-      overflow-y: auto;                 /* overlay เลื่อนถ้าการ์ดยาว */
-      padding: 16px;                    /* กันชิดขอบบนมือถือ */
-    }
-    .modal.show{ display:flex; }
-    
-    .modal-card{
-      background: #fff;
-      border-radius: 1rem;
-      width: 100%; max-width: 560px;
-      box-shadow: 0 30px 60px -25px rgba(0,0,0,.35);
-      max-height: min(90vh, 90dvh);    /* การ์ดไม่เกินจอ */
-      overflow: auto;                   /* เนื้อหาในการ์ดเลื่อนเอง */
-      -webkit-overflow-scrolling: touch;
-      margin: auto;                     /* จัดกลางเสมอ */
-    }
+<style>
+  /* reset เล็กน้อย */
+  *{ box-sizing:border-box }
+  html,body{ width:100%; height:100% }
 
-    /* กรอบเลื่อนเฉพาะตาราง */
-    #mgTableFrame{
-      max-height: 65dvh;          /* ปรับได้ 60–75dvh ตามชอบ */
-      overflow: auto;              /* เลื่อนแนวตั้ง/แนวนอนได้ในกรอบนี้ */
-      border: 1px solid #e5e7eb;   /* border-gray-200 */
-      border-radius: 0.75rem;      /* rounded-lg */
-      background: #fff;
-    }
-    
-    /* ป้องกันการสืบทอด overflow ที่ทำให้ sticky เพี้ยน */
-    #mgTable{
-      border-collapse: separate;
-      table-layout: auto;
-      min-width: 1380px;           /* ถ้าข้อมูลยาวจะมีสโครลแนวนอน */
-    }
-    
-    /* หัวตารางติดบนเวลาเลื่อน */
-    #mgTable thead th{
-      position: sticky;
-      top: 0;
-      z-index: 1;
-      background: #fff;
-    }
-    
-    /* ไม่ตัดคำคอลัมน์ส่วนใหญ่ */
-    .table-nowrap th, .table-nowrap td{ white-space: nowrap; }
-    
-    /* ให้คอลัมน์ "งาน" พับบรรทัดได้ (กันยาวจนดันความกว้าง) */
-    td.col-task{ white-space: normal; word-break: break-word; }
+  /* app-shell: หน้าไม่เลื่อน ให้ main เป็นพื้นที่เลื่อน */
+  html, body{
+    overflow:hidden;
+    overscroll-behavior:none;
+    -webkit-font-smoothing:antialiased;
+    -webkit-text-size-adjust:100%;
+    font-family:'Prompt',sans-serif;
+    background:linear-gradient(135deg,#eef2ff 0%,#f8fafc 100%);
+  }
+  body{
+    display:flex; flex-direction:column;
+    min-height:100dvh; min-height:100svh;
+    overflow-x:hidden;
+  }
 
+  header{ position:sticky; top:0; z-index:40;
+    padding-top:env(safe-area-inset-top);
+    backdrop-filter:saturate(180%) blur(8px);
+    -webkit-backdrop-filter:saturate(180%) blur(8px);
+  }
 
-  </style>
+  /* main = พื้นที่เลื่อนหลัก */
+  main{
+    flex:1; min-height:0;               /* สำคัญมาก */
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior-y:contain;
+    padding-bottom:max(16px, env(safe-area-inset-bottom));
+  }
+
+  :root{ --card-radius:1rem }
+  .card{ border-radius:var(--card-radius); box-shadow:0 20px 50px -20px rgba(0,0,0,.15) }
+  .avatar-ring{ box-shadow:0 0 0 4px #fff, 0 0 0 6px rgba(59,130,246,.6) }
+  .pill{ border-radius:9999px }
+  .sidebar-item.active{ background:#eef2ff; color:#1d4ed8; font-weight:600 }
+  .grid-def{ grid-template-columns:1fr 1fr }
+  @media (max-width:1024px){ .grid-def{ grid-template-columns:1fr } }
+  .toast{ position:fixed; right:16px; top:16px; z-index:60; display:flex; flex-direction:column; gap:10px }
+  .toast-item{ background:#111827; color:#fff; padding:12px 14px; border-radius:12px; box-shadow:0 10px 20px -10px rgba(0,0,0,.3); min-width:260px; display:flex; gap:10px }
+
+  /* skeleton ระหว่างโหลด */
+  html.app-loading main{ opacity:0; pointer-events:none }
+  #page-skeleton{ display:none }
+  html.app-loading #page-skeleton{ display:block }
+
+  /* modal */
+  body.modal-open{ overflow:hidden } /* กันพื้นหลังเลื่อนเมื่อเปิดโมดัล */
+  .modal{
+    position:fixed; inset:0; display:none;
+    align-items:center; justify-content:center;
+    background:rgba(0,0,0,.55); z-index:50;
+    overflow-y:auto; padding:16px;
+  }
+  .modal.show{ display:flex }
+  .modal-card{
+    background:#fff; border-radius:1rem; width:100%; max-width:560px;
+    box-shadow:0 30px 60px -25px rgba(0,0,0,.35);
+    max-height:min(90dvh,90vh); overflow:auto; -webkit-overflow-scrolling:touch; margin:auto;
+  }
+
+  /* ===== Manage table (เฉพาะแท็บจัดการ) ===== */
+  /* ให้การ์ด manage เป็นคอลัมน์ที่ยอมยุบสูง (ไม่ดันหน้า) */
+  [data-pane="manage"].card{ display:flex; flex-direction:column; min-height:0 }
+
+  /* กรอบเลื่อนเฉพาะตาราง */
+  #mgTableFrame{
+    max-height:min(65dvh,65vh);
+    overflow:auto; -webkit-overflow-scrolling:touch;
+    border:1px solid #e5e7eb; border-radius:.75rem; background:#fff;
+  }
+
+  /* เรียงคอลัมน์/หัวตาราง sticky */
+  #mgTable{ border-collapse:separate; table-layout:auto; min-width:1380px; width:100% }
+  #mgTable thead th{ position:sticky; top:0; z-index:1; background:#fff }
+  .table-nowrap th,.table-nowrap td{ white-space:nowrap }
+  td.col-task{ white-space:normal; word-break:break-word } /* คอลัมน์งานให้พับบรรทัด */
+</style>
+
 </head>
 <body class="min-h-screen">
 
