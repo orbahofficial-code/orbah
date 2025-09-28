@@ -775,10 +775,8 @@ function setAvatarSrc(src){
 // --- loadAvatarFallback: ใช้ได้เลยของเดิม ---
 async function loadAvatarFallback(username){
   try{
-    const res = await fetch(`${API_BASE}?route=get_profile_photo&username=${encodeURIComponent(username)}`, {
-      method: 'GET',
-      headers: { 'Cache-Control':'no-cache' }
-    });
+    const url = `${API_BASE}?route=get_profile_photo&username=${encodeURIComponent(username)}&v=${Date.now()}`;
+    const res = await fetch(url); // <= ไม่มี headers พิเศษ เพื่อเลี่ยง preflight
     const data = await res.json().catch(()=> ({}));
     if(res.ok && data?.ok && data?.base64){
       const src = `data:${data.mimeType||'image/png'};base64,${data.base64}`;
@@ -788,6 +786,7 @@ async function loadAvatarFallback(username){
   }catch(_){}
   return false;
 }
+
 
 // --- ปรับเฉพาะบล็อก avatar ใน bindData ---
 function bindData(data){
