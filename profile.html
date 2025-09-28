@@ -1122,28 +1122,32 @@ function stopScanner(hideWrap = true){
 // ==== สแกนแล้วแสดงพรีวิวสำหรับ OR ====
 let __scanContext = { raw: null, work_id: null, qr_id: null, mode: 'in' };
 
+// วาดข้อมูล + ปุ่มในโมดัลสแกน
 function fillScanPreviewUI(pv){
   $('#pvFullname').textContent = pv.fullname || '-';
   $('#pvCompany').textContent  = pv.company || pv.workplace || '-';
   $('#pvTask').textContent     = pv.task || '-';
   $('#pvRoom').textContent     = pv.room || '-';
+
   const note = $('#pvNote');
   if (pv.status_text) { note.textContent = pv.status_text; note.style.display = ''; }
   else { note.style.display = 'none'; }
 
   const act = $('#scanPreviewActions');
   act.innerHTML = '';
+
   if (__scanContext.mode === 'in') {
     const btnIn = document.createElement('button');
     btnIn.className = 'px-4 py-2 pill bg-emerald-600 text-white hover:bg-emerald-700';
     btnIn.innerHTML = '<i class="fa-solid fa-right-to-bracket mr-1"></i> Check in';
-    btnIn.addEventListener('click', handleConfirmCheckIn);
+    // กดแล้วมีสปินเนอร์
+    btnIn.addEventListener('click', () => confirmScanAction('in', btnIn));
     act.appendChild(btnIn);
   } else {
     const btnOut = document.createElement('button');
     btnOut.className = 'px-4 py-2 pill bg-rose-600 text-white hover:bg-rose-700';
     btnOut.innerHTML = '<i class="fa-solid fa-right-from-bracket mr-1"></i> Check out';
-    btnOut.addEventListener('click', handleConfirmCheckOut);
+    btnOut.addEventListener('click', () => confirmScanAction('out', btnOut));
     act.appendChild(btnOut);
   }
 
@@ -1152,6 +1156,53 @@ function fillScanPreviewUI(pv){
   $('#scannerWrap')?.classList.add('hidden');
   openModal('scanPreviewModal');
 }
+
+// ทำงานเมื่อกดปุ่มในโมดัล (รวม in/out)
+async function confirmScanAction(action, btn){
+  const checker_username = localStorage.getItem('username') || '';
+  const checker_name = localStorage.getItem('fullname') || checker_username;
+
+  // ล็อกปุ่มทั้งแถบกันกดซ้ำ
+  const wrap = $('#scanPreviewActions');
+  const allBtns = wrap ? Array.from(wrap.querySelectorAll('button')) : [];
+  allBtns.forEach(b => b.disabled = true);
+  setBtnLoading(btn, true, action === 'in' ? 'กำลังเช็คอิน...' : 'กำลังเช็คเอาต์...');
+
+  try{
+    if (action === 'in'){
+      if (__scanContext.work_id) {
+        await apiPost('work_confirm', { work_id: __scanContext.work_id, checker_username, checker_name });
+      } else if (__scanContext.qr_id) {
+        const r = await apiPost('scan_confirm_in', { qr_id: __scanContext.qr_id, checker_username, checker_name });
+        if (!r?.ok) throw new Error(r?.message || 'เช็คอินไม่สำเร็จ');
+      } else {
+        throw new Error('ไม่มีข้อมูลงาน/QR ที่จะเช็คอิน');
+      }
+      Toast.show('เช็คอินสำเร็จ','success');
+    } else {
+      if (__scanContext.work_id) {
+        await apiPost('work_checkout', { work_id: __scanContext.work_id, checker_username, checker_name });
+      } else if (__scanContext.qr_id) {
+        const r = await apiPost('scan_confirm_out', { qr_id: __scanContext.qr_id, checker_username, checker_name });
+        if (!r?.ok) throw new Error(r?.message || 'เช็คเอาต์ไม่สำเร็จ');
+      } else {
+        throw new Error('ไม่มีข้อมูลงาน/QR ที่จะเช็คเอาต์');
+      }
+      Toast.show('เช็คเอาต์สำเร็จ','success');
+    }
+
+    closeModal('scanPreviewModal');
+
+  }catch(err){
+    console.error(err);
+    Toast.show(err.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
+  }finally{
+    // คืนปุ่ม
+    setBtnLoading(btn, false);
+    allBtns.forEach(b => b.disabled = false);
+  }
+}
+
 
 async function handleConfirmCheckIn(){
   try{
