@@ -36,11 +36,11 @@
     .toast-item.info{background:#1f2937}
     @keyframes slidein{from{transform:translateY(-10px);opacity:0} to{transform:translateY(0);opacity:1}}
 
-    /* Modal (แก้ให้สกรอลล์ได้) */
+    /* Modal (เลื่อนสกรอลล์ได้) */
     .modal{
       position:fixed; inset:0; background:rgba(0,0,0,.5);
       display:none; align-items:flex-start; justify-content:center;
-      padding:24px; z-index:50; overflow-y:auto; /* สำคัญ: ให้ overlay สกรอลล์ได้ */
+      padding:24px; z-index:50; overflow-y:auto;
       -webkit-overflow-scrolling: touch;
     }
     .modal.show{display:flex;}
@@ -48,14 +48,10 @@
       background:#fff; border-radius:16px; box-shadow:0 20px 50px -20px rgba(0,0,0,.35);
       width:100%;
     }
-    /* จำกัดความสูงของการ์ดให้ไม่เกินหน้าจอ แล้วเปิดสกรอลล์ภายในการ์ด */
     .modal .card{
       max-height:90vh; overflow-y:auto; -webkit-overflow-scrolling: touch;
     }
-    /* ล็อกพื้นหลังเมื่อเปิดโมดอล */
     body.modal-open{ overflow:hidden; }
-
-    /* safe area (iOS notch) */
     .modal{ padding-top: max(24px, env(safe-area-inset-top)); padding-bottom: max(24px, env(safe-area-inset-bottom)); }
   </style>
 </head>
@@ -66,7 +62,7 @@
     <div class="text-center mb-6">
       <div class="mx-auto w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
         <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
-          <path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-0.257-0.257A6 6 0 1118 8zM2 8a6 6 0 1010.257 5.743L12 14l-0.257-0.257A6 6 0 012 8zm8-4a4 4 0 100 8 4 4 0 000-8z" clip-rule="evenodd"></path>
+          <path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-0.257-0.257A6 6 0 1118 8zM2 8a6 6 0 1010.257 5.743L12 14l-0.257-0.257A6 6 0 012 8zm8-4a 4 4 0 100 8 4 4 0 000-8z" clip-rule="evenodd"></path>
         </svg>
       </div>
       <h1 class="text-2xl font-bold text-gray-800 mb-2">เข้าสู่ระบบ</h1>
@@ -83,7 +79,7 @@
       </button>
     </div>
 
-    <!-- Login Form (ไม่มีเลือกประเภทแล้ว) -->
+    <!-- Login Form -->
     <form id="loginForm" class="space-y-4 transition-all duration-300">
       <div class="input-group">
         <input type="text" id="username" name="username"
@@ -168,14 +164,7 @@
         <div><label class="text-sm">เบอร์โทร</label><input class="w-full border rounded-lg px-3 py-2" name="phone" required></div>
         <div class="md:col-span-1"><label class="text-sm">รหัสผ่าน</label><input type="password" class="w-full border rounded-lg px-3 py-2" name="password" required></div>
         <div class="md:col-span-1"><label class="text-sm">คอนเฟิร์มรหัส</label><input type="password" class="w-full border rounded-lg px-3 py-2" name="confirm" required></div>
-        <div class="md:col-span-2">
-          <label class="text-sm">บทบาท</label>
-          <select class="w-full border rounded-lg px-3 py-2" name="role" required>
-            <option value="admin">ผู้ดูแลระบบ</option>
-            <option value="or-staff">เจ้าหน้าที่ห้องผ่าตัด</option>
-            <option value="hospital-staff">เจ้าหน้าที่ รพ.</option>
-          </select>
-        </div>
+        <!-- ไม่มีตัวเลือกบทบาท ให้ admin จัดการทีหลัง -->
         <div class="md:col-span-2 flex gap-2 justify-end">
           <button type="button" class="px-4 py-2 rounded-lg border" data-close="internalModal">ยกเลิก</button>
           <button id="btnInternalSubmit" class="px-4 py-2 rounded-lg bg-emerald-600 text-white">
@@ -183,6 +172,7 @@
           </button>
         </div>
       </form>
+      <p class="text-xs text-gray-500 mt-3">* หลังลงทะเบียน บัญชีจะอยู่ในสถานะรอตรวจสอบสิทธิ์โดยผู้ดูแลระบบ</p>
     </div>
   </div>
 
@@ -296,10 +286,8 @@
       const m = document.getElementById(id);
       if(!m) return;
       m.classList.remove('show');
-      // ถอด handler
       if(m._onBgClick){ m.removeEventListener('click', m._onBgClick); delete m._onBgClick; }
       if(m._onEsc){ document.removeEventListener('keydown', m._onEsc); delete m._onEsc; }
-      // ถ้ายังมี modal อื่นเปิดอยู่ อย่าปลดล็อก body
       const anyOpen = $$('.modal').some(x => x.classList.contains('show'));
       if(!anyOpen){ document.body.classList.remove('modal-open'); }
     }
@@ -352,7 +340,7 @@
       const savedUsername = localStorage.getItem('login_username');
       if(savedUsername){ usernameInput.value = savedUsername; }
 
-      // ===== Login (ไม่มี role ส่งไปแล้ว) =====
+      // ===== Login =====
       loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const username = usernameInput.value.trim();
@@ -390,16 +378,21 @@
         }
       });
 
-      // ===== Register Internal =====
+      // ===== Register Internal (no role selection; default 'pending') =====
       $('#btnInternalSubmit').addEventListener('click', async (e)=>{
         e.preventDefault();
         const f = $('#internalForm');
         const form = Object.fromEntries(new FormData(f).entries());
-        if(form.password !== form.confirm){ Toast.show('รหัสผ่านไม่ตรงกัน','error'); return; }
-        if(!['admin','or-staff','hospital-staff'].includes(form.role)){ Toast.show('บทบาทไม่ถูกต้อง','error'); return; }
+
+        if(form.password !== form.confirm){
+          Toast.show('รหัสผ่านไม่ตรงกัน','error'); return;
+        }
+
+        // บังคับสถานะเริ่มต้นเป็น pending เพื่อรอแอดมินอนุมัติ
+        form.role = 'pending';
 
         const btn = e.currentTarget;
-        setLoading(btn, true);
+        setLoading(btn, true, 'กำลังบันทึก...');
         try{
           const res = await fetch(`${API_BASE}?route=register_internal`, {
             method: 'POST',
@@ -408,7 +401,7 @@
           });
           const data = await res.json().catch(()=> ({}));
           if(res.ok && data?.ok){
-            Toast.show('ลงทะเบียนสำเร็จ','success');
+            Toast.show('ลงทะเบียนสำเร็จ: บัญชีอยู่ระหว่างรอผู้ดูแลระบบอนุมัติ','success');
             closeModal('internalModal');
           }else{
             Toast.show(data?.message || 'ลงทะเบียนไม่สำเร็จ','error');
