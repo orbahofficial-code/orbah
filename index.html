@@ -253,354 +253,274 @@
   <!-- Toast container -->
   <div id="toast" class="toast"></div>
 
-  <script>
-    // ====== CONFIG: ใส่ URL GAS (ลงท้าย /exec)
-    const API_BASE = "https://script.google.com/macros/s/AKfycbzK9QDRUSEq5U18Pwa40TWA-f4NrGx1CR2xqtnHBRgMQ3kSP1LfaJDMZPRc4evwuww-/exec"; // TODO: ใส่ของจริง
+<script>
+  // ====== CONFIG: ใส่ URL GAS (ลงท้าย /exec)
+  const API_BASE = "https://script.google.com/macros/s/AKfycbzK9QDRUSEq5U18Pwa40TWA-f4NrGx1CR2xqtnHBRgMQ3kSP1LfaJDMZPRc4evwuww-/exec";
 
-    const $  = (sel, root = document) => root.querySelector(sel);
-    const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+  const $  = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-    const Toast = {
-      show(msg, type='info', timeout=3000){
-        const wrap = $('#toast');
-        const item = document.createElement('div');
-        item.className = `toast-item ${type}`;
-        item.innerHTML = `
-          <div><i class="fa-solid ${type==='success'?'fa-circle-check':type==='error'?'fa-circle-xmark':'fa-circle-info'} mt-1"></i></div>
-          <div class="text-sm leading-snug">${msg}</div>`;
-        wrap.appendChild(item);
-        setTimeout(()=>{ item.style.opacity='0'; item.style.transform='translateY(-6px)'; }, timeout-350);
-        setTimeout(()=> item.remove(), timeout);
-      }
-    };
-
-    function setLoading(btn, isLoading, text='กำลังดำเนินการ...'){
-      if(!btn) return;
-      if(isLoading){
-        btn.dataset._text = btn.textContent;
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i>${text}`;
-        btn.disabled = true;
-      }else{
-        btn.innerHTML = btn.dataset._text || 'ดำเนินการ';
-        btn.disabled = false;
-      }
+  const Toast = {
+    show(msg, type='info', timeout=3000){
+      const wrap = $('#toast');
+      const item = document.createElement('div');
+      item.className = `toast-item ${type}`;
+      item.innerHTML = `
+        <div><i class="fa-solid ${type==='success'?'fa-circle-check':type==='error'?'fa-circle-xmark':'fa-circle-info'} mt-1"></i></div>
+        <div class="text-sm leading-snug">${msg}</div>`;
+      wrap.appendChild(item);
+      setTimeout(()=>{ item.style.opacity='0'; item.style.transform='translateY(-6px)'; }, timeout-350);
+      setTimeout(()=> item.remove(), timeout);
     }
+  };
 
-    function openModal(id){
-      const m = document.getElementById(id);
-      if(!m) return;
-      m.classList.add('show');
-      document.body.classList.add('modal-open');
-      // ปิดเมื่อคลิกพื้นหลัง
-      const onBgClick = (e)=>{
-        if(e.target === m) closeModal(id);
-      };
-      m._onBgClick = onBgClick;
-      m.addEventListener('click', onBgClick);
-      // ปิดด้วย ESC
-      const onEsc = (e)=>{
-        if(e.key === 'Escape') closeModal(id);
-      };
-      m._onEsc = onEsc;
-      document.addEventListener('keydown', onEsc);
+  function setLoading(btn, isLoading, text='กำลังดำเนินการ...'){
+    if(!btn) return;
+    if(isLoading){
+      btn.dataset._text = btn.textContent;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i>${text}`;
+      btn.disabled = true;
+    }else{
+      btn.innerHTML = btn.dataset._text || 'ดำเนินการ';
+      btn.disabled = false;
     }
+  }
 
-    function closeModal(id){
-      const m = document.getElementById(id);
-      if(!m) return;
-      m.classList.remove('show');
-      if(m._onBgClick){ m.removeEventListener('click', m._onBgClick); delete m._onBgClick; }
-      if(m._onEsc){ document.removeEventListener('keydown', m._onEsc); delete m._onEsc; }
-      const anyOpen = $$('.modal').some(x => x.classList.contains('show'));
-      if(!anyOpen){ document.body.classList.remove('modal-open'); }
-    }
+  function openModal(id){
+    const m = document.getElementById(id);
+    if(!m) return;
+    m.classList.add('show');
+    document.body.classList.add('modal-open');
+    const onBgClick = (e)=>{ if(e.target === m) closeModal(id); };
+    m._onBgClick = onBgClick; m.addEventListener('click', onBgClick);
+    const onEsc = (e)=>{ if(e.key === 'Escape') closeModal(id); };
+    m._onEsc = onEsc; document.addEventListener('keydown', onEsc);
+  }
 
-    function fileToBase64(file){
-      return new Promise((resolve, reject)=>{
-        const fr = new FileReader();
-        fr.onload = () => {
-          const dataUrl = fr.result;
-          const base64 = String(dataUrl).split(',')[1] || '';
-          resolve({ base64, mimeType: file.type || 'application/octet-stream', filename: file.name || 'upload.bin' });
-        };
-        fr.onerror = reject;
-        fr.readAsDataURL(file);
-      });
-    }
+  function closeModal(id){
+    const m = document.getElementById(id);
+    if(!m) return;
+    m.classList.remove('show');
+    if(m._onBgClick){ m.removeEventListener('click', m._onBgClick); delete m._onBgClick; }
+    if(m._onEsc){ document.removeEventListener('keydown', m._onEsc); delete m._onEsc; }
+    const anyOpen = $$('.modal').some(x => x.classList.contains('show'));
+    if(!anyOpen){ document.body.classList.remove('modal-open'); }
+  }
 
-    function goProfile(){ window.location.href = 'profile.html'; }
-
-    // ===== Image helpers =====
-    function readFileAsDataURL(file){
-      return new Promise((resolve, reject)=>{
-        const fr = new FileReader();
-        fr.onload = ()=> resolve(fr.result);
-        fr.onerror = reject;
-        fr.readAsDataURL(file);
-      });
-    }
-    
-    // ลดขนาด + ใส่ลายน้ำ (ถ้ากำหนด text) แล้วคืนเป็น dataURL
-    async function makeDataURLWithOptionalWatermark(file, {maxW=1400, maxH=1400, mime='image/jpeg', quality=0.92, watermarkText='' } = {}){
-      const dataURL = await readFileAsDataURL(file);
-    
-      // สร้าง image
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      const loaded = new Promise((res, rej)=>{ img.onload=res; img.onerror=rej; });
-      img.src = dataURL; await loaded;
-    
-      // คำนวณสัดส่วน
-      let {width:w, height:h} = img;
-      const scale = Math.min(1, maxW / w, maxH / h);
-      const cw = Math.round(w * scale), ch = Math.round(h * scale);
-    
-      // วาดลง canvas
-      const canvas = document.createElement('canvas');
-      canvas.width = cw; canvas.height = ch;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, cw, ch);
-    
-      // ใส่ลายน้ำถ้ามี
-      if (watermarkText){
-        const diag = Math.sqrt(cw*cw + ch*ch);
-        // ตั้งฟอนต์ตามขนาดภาพ (ใหญ่พอเห็นชัด)
-        const fontSize = Math.max(24, Math.round(diag * 0.05));
-        ctx.save();
-        ctx.translate(cw/2, ch/2);
-        ctx.rotate(-Math.PI/6); // เอียงเล็กน้อย
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = 'rgba(0,0,0,0.12)';
-        ctx.font = `bold ${fontSize}px Prompt, sans-serif`;
-        // ซ้ำ 3 แถวพอให้เห็นทั่วภาพ
-        const step = fontSize * 2.2;
-        for(let y=-step; y<=step; y+=step){
-          ctx.fillText(watermarkText, 0, y);
-        }
-        ctx.restore();
-      }
-    
-      return canvas.toDataURL(mime, quality);
-    }
-
-    
-    document.addEventListener('DOMContentLoaded', () => {
-      const loginForm = $('#loginForm');
-      const usernameInput = $('#username');
-      const passwordInput = $('#password');
-      const togglePasswordBtn = $('#togglePassword');
-      const rememberCheckbox = $('#rememberMe');
-      const loginButton = $('#loginBtn');
-
-      const successModal = $('#successModal');
-      const welcomeMessage = $('#welcomeMessage');
-      const closeModalBtn = $('#closeModal');
-
-      // เก็บ DataURL ที่พร้อมอัปโหลด
-      let idcardPreviewDataURL = null;      // (มีลายน้ำ)
-      let portraitPreviewDataURL = null;    // (ไม่มีลายน้ำ)
-      
-      const idcardInput    = $('#idcard_input');
-      const idcardPreview  = $('#idcard_preview');
-      const portraitInput  = $('#portrait_input');
-      const portraitPreview= $('#portrait_preview');
-      
-      // พรีวิว + ใส่ลายน้ำ
-      idcardInput.addEventListener('change', async () => {
-        const f = idcardInput.files?.[0];
-        if(!f) return;
-        const wmText = 'กวห.รพ.ภูมิพลอดุลยเดช พอ.';
-        idcardPreviewDataURL = await makeDataURLWithOptionalWatermark(f, { watermarkText: wmText });
-        idcardPreview.src = idcardPreviewDataURL;
-      });
-      
-      // พรีวิวอย่างเดียว (ไม่ใส่ลายน้ำ)
-      portraitInput.addEventListener('change', async () => {
-        const f = portraitInput.files?.[0];
-        if(!f) return;
-        portraitPreviewDataURL = await makeDataURLWithOptionalWatermark(f, { watermarkText: '' });
-        portraitPreview.src = portraitPreviewDataURL;
-      });
-
-
-      // Quick buttons
-      $('#openInternalReg').addEventListener('click', ()=> openModal('internalModal'));
-      $('#openExternalReg').addEventListener('click', ()=> openModal('externalModal'));
-      $('#openForgot').addEventListener('click', ()=> openModal('forgotModal'));
-
-      // Close modal buttons
-      $$('[data-close]').forEach(btn=>{
-        btn.addEventListener('click', ()=> closeModal(btn.getAttribute('data-close')));
-      });
-
-      // Toggle password visibility
-      togglePasswordBtn.addEventListener('click', () => {
-        const isPwd = passwordInput.type === 'password';
-        passwordInput.type = isPwd ? 'text' : 'password';
-        togglePasswordBtn.innerHTML = `<i class="fa-regular ${isPwd? 'fa-eye-slash':'fa-eye'}"></i>`;
-      });
-
-      // Load remembered username
-      const savedUsername = localStorage.getItem('login_username');
-      if(savedUsername){ usernameInput.value = savedUsername; }
-
-      // ===== Login =====
-      loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const username = usernameInput.value.trim();
-        const password = passwordInput.value;
-        if(!username || !password){ Toast.show('กรุณากรอกชื่อผู้ใช้งานและรหัสผ่าน','error'); return; }
-
-        setLoading(loginButton, true, 'กำลังตรวจสอบ...');
-        try{
-          const res = await fetch(`${API_BASE}?route=login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ username, password })
-          });
-          const data = await res.json().catch(()=> ({}));
-          if(res.ok && data?.ok){
-            if(rememberCheckbox.checked){ localStorage.setItem('login_username', username); }
-            else{ localStorage.removeItem('login_username'); }
-
-            localStorage.setItem('auth_token', data.token || '');
-            localStorage.setItem('userRole', data.role || '');
-            localStorage.setItem('username', username);
-            localStorage.setItem('fullname', data.fullname || '');
-
-            welcomeMessage.textContent = `ยินดีต้อนรับ ${data.fullname || username} (${data.roleName || ''})`;
-            openModal('successModal');
-            closeModalBtn.onclick = ()=>{ closeModal('successModal'); goProfile(); };
-          }else{
-            Toast.show(data?.message || 'เข้าสู่ระบบไม่สำเร็จ', 'error');
-          }
-        }catch(err){
-          console.error(err);
-          Toast.show('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่', 'error');
-        }finally{
-          setLoading(loginButton, false);
-        }
-      });
-
-      // ===== Register Internal (no role selection; default 'pending') =====
-      $('#btnInternalSubmit').addEventListener('click', async (e)=>{
-        e.preventDefault();
-        const f = $('#internalForm');
-        const form = Object.fromEntries(new FormData(f).entries());
-
-        if(form.password !== form.confirm){
-          Toast.show('รหัสผ่านไม่ตรงกัน','error'); return;
-        }
-
-        // บังคับสถานะเริ่มต้นเป็น pending เพื่อรอแอดมินอนุมัติ
-        form.role = 'pending';
-
-        const btn = e.currentTarget;
-        setLoading(btn, true, 'กำลังบันทึก...');
-        try{
-          const res = await fetch(`${API_BASE}?route=register_internal`, {
-            method: 'POST',
-            headers: {'Content-Type':'text/plain;charset=utf-8'},
-            body: JSON.stringify(form)
-          });
-          const data = await res.json().catch(()=> ({}));
-          if(res.ok && data?.ok){
-            Toast.show('ลงทะเบียนสำเร็จ: บัญชีอยู่ระหว่างรอผู้ดูแลระบบอนุมัติ','success');
-            closeModal('internalModal');
-          }else{
-            Toast.show(data?.message || 'ลงทะเบียนไม่สำเร็จ','error');
-          }
-        }catch(err){
-          console.error(err);
-          Toast.show('ไม่สามารถลงทะเบียนได้','error');
-        }finally{ setLoading(btn, false); }
-      });
-
-      // ===== Register External (base64 images) =====
-      $('#btnExternalSubmit').addEventListener('click', async (e)=>{
-        e.preventDefault();
-        const f = $('#externalForm');
-        const fd = new FormData(f);
-        const form = Object.fromEntries(fd.entries());
-        if(form.password !== form.confirm){ Toast.show('รหัสผ่านไม่ตรงกัน','error'); return; }
-      
-        const idFile = fd.get('idcard_img');
-        const faceFile = fd.get('portrait_img');
-        if(!(idFile && idFile.size) || !(faceFile && faceFile.size)){
-          Toast.show('กรุณาอัปโหลดภาพให้ครบ','error'); return;
-        }
-      
-        const btn = e.currentTarget;
-        setLoading(btn, true, 'กำลังอัปโหลด...');
-      
-        try{
-          // ถ้า user ยังไม่เปลี่ยนไฟล์หลังโหลดหน้า ให้สร้าง DataURL ตอนนี้
-          if(!idcardPreviewDataURL){
-            idcardPreviewDataURL = await makeDataURLWithOptionalWatermark(idFile, { watermarkText: 'กวห.รพ.ภูมิพลอดุลยเดช พอ.' });
-          }
-          if(!portraitPreviewDataURL){
-            portraitPreviewDataURL = await makeDataURLWithOptionalWatermark(faceFile, { watermarkText: '' });
-          }
-      
-          // แปลง DataURL → {base64, mimeType, filename}
-          const [idMime, idBase64]   = idcardPreviewDataURL.split(';base64,');
-          const [pfMime, pfBase64]   = portraitPreviewDataURL.split(';base64,');
-          const payload = {
-            ...form,
-            idcard_img:   { base64: idBase64, mimeType: idMime.replace('data:', ''), filename: idFile.name || 'idcard.jpg' },
-            portrait_img: { base64: pfBase64, mimeType: pfMime.replace('data:', ''), filename: faceFile.name || 'portrait.jpg' }
-          };
-      
-          const res = await fetch(`${API_BASE}?route=register_external`, {
-            method: 'POST',
-            headers: {'Content-Type':'text/plain;charset=utf-8'},
-            body: JSON.stringify(payload)
-          });
-          const data = await res.json().catch(()=> ({}));
-          if(res.ok && data?.ok){
-            Toast.show('ส่งคำขอลงทะเบียนแล้ว (รอตรวจสอบ)','success');
-            closeModal('externalModal');
-          }else{
-            Toast.show(data?.message || 'ลงทะเบียนไม่สำเร็จ','error');
-          }
-        }catch(err){
-          console.error(err);
-          Toast.show('ไม่สามารถส่งคำขอได้','error');
-        }finally{
-          setLoading(btn, false);
-        }
-      });
-
-
-      // ===== Forgot Password =====
-      $('#btnForgotSubmit').addEventListener('click', async (e)=>{
-        e.preventDefault();
-        const f = $('#forgotForm');
-        const form = Object.fromEntries(new FormData(f).entries());
-
-        const btn = e.currentTarget;
-        setLoading(btn, true, 'กำลังส่งคำขอ...');
-        try{
-          const res = await fetch(`${API_BASE}?route=forgot_password`, {
-            method: 'POST',
-            headers: {'Content-Type':'text/plain;charset=utf-8'},
-            body: JSON.stringify(form)
-          });
-          const data = await res.json().catch(()=> ({}));
-          if(res.ok && data?.ok){
-            Toast.show('ส่งคำขอแล้ว แอดมินจะตรวจสอบให้ครับ','success');
-            closeModal('forgotModal');
-          }else{
-            Toast.show(data?.message || 'ส่งคำขอไม่สำเร็จ','error');
-          }
-        }catch(err){
-          console.error(err);
-          Toast.show('ไม่สามารถส่งคำขอได้','error');
-        }finally{ setLoading(btn, false); }
-      });
-
+  // ========= NEW: เคลียร์ฟอร์ม + ไฟล์ + รูปพรีวิว =========
+  function clearForm(formOrSelector){
+    const form = typeof formOrSelector === 'string' ? $(formOrSelector) : formOrSelector;
+    if(!form) return;
+    // รีเซ็ตค่าช่อง input/select/textarea ทั้งหมด
+    form.reset();
+    // ล้างค่า file input
+    form.querySelectorAll('input[type="file"]').forEach(i => i.value = '');
+    // ล้างรูปพรีวิว (รองรับทั้ง data-preview และ id ที่ใช้ในโปรเจ็กต์)
+    form.querySelectorAll('img[data-preview], #idcard_preview, #portrait_preview').forEach(img=>{
+      img.removeAttribute('src');
+      img.alt = '';
     });
-  </script>
+  }
+  // ตัวแปรพรีวิว (ถ้ามีฟีเจอร์พรีวิว/ลายน้ำ)
+  let idcardPreviewDataURL = null;
+  let portraitPreviewDataURL = null;
+
+  function fileToBase64(file){
+    return new Promise((resolve, reject)=>{
+      const fr = new FileReader();
+      fr.onload = () => {
+        const dataUrl = fr.result;
+        const base64 = String(dataUrl).split(',')[1] || '';
+        resolve({ base64, mimeType: file.type || 'application/octet-stream', filename: file.name || 'upload.bin' });
+      };
+      fr.onerror = reject;
+      fr.readAsDataURL(file);
+    });
+  }
+
+  function goProfile(){ window.location.href = 'profile.html'; }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const loginForm = $('#loginForm');
+    const usernameInput = $('#username');
+    const passwordInput = $('#password');
+    const togglePasswordBtn = $('#togglePassword');
+    const rememberCheckbox = $('#rememberMe');
+    const loginButton = $('#loginBtn');
+
+    const successModal = $('#successModal');
+    const welcomeMessage = $('#welcomeMessage');
+    const closeModalBtn = $('#closeModal');
+
+    // Quick buttons
+    $('#openInternalReg').addEventListener('click', ()=> openModal('internalModal'));
+    $('#openExternalReg').addEventListener('click', ()=> openModal('externalModal'));
+    $('#openForgot').addEventListener('click', ()=> openModal('forgotModal'));
+
+    // Close modal buttons
+    $$('[data-close]').forEach(btn=>{
+      btn.addEventListener('click', ()=> closeModal(btn.getAttribute('data-close')));
+    });
+
+    // Toggle password visibility
+    togglePasswordBtn.addEventListener('click', () => {
+      const isPwd = passwordInput.type === 'password';
+      passwordInput.type = isPwd ? 'text' : 'password';
+      togglePasswordBtn.innerHTML = `<i class="fa-regular ${isPwd? 'fa-eye-slash':'fa-eye'}"></i>`;
+    });
+
+    // Load remembered username
+    const savedUsername = localStorage.getItem('login_username');
+    if(savedUsername){ usernameInput.value = savedUsername; }
+
+    // ===== Login =====
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value;
+      if(!username || !password){ Toast.show('กรุณากรอกชื่อผู้ใช้งานและรหัสผ่าน','error'); return; }
+
+      setLoading(loginButton, true, 'กำลังตรวจสอบ...');
+      try{
+        const res = await fetch(`${API_BASE}?route=login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json().catch(()=> ({}));
+        if(res.ok && data?.ok){
+          if(rememberCheckbox.checked){ localStorage.setItem('login_username', username); }
+          else{ localStorage.removeItem('login_username'); }
+
+          localStorage.setItem('auth_token', data.token || '');
+          localStorage.setItem('userRole', data.role || '');
+          localStorage.setItem('username', username);
+          localStorage.setItem('fullname', data.fullname || '');
+
+          welcomeMessage.textContent = `ยินดีต้อนรับ ${data.fullname || username} (${data.roleName || ''})`;
+          openModal('successModal');
+          closeModalBtn.onclick = ()=>{ closeModal('successModal'); goProfile(); };
+        }else{
+          Toast.show(data?.message || 'เข้าสู่ระบบไม่สำเร็จ', 'error');
+        }
+      }catch(err){
+        console.error(err);
+        Toast.show('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่', 'error');
+      }finally{
+        setLoading(loginButton, false);
+      }
+    });
+
+    // ===== Register Internal =====
+    $('#btnInternalSubmit').addEventListener('click', async (e)=>{
+      e.preventDefault();
+      const f = $('#internalForm');
+      const form = Object.fromEntries(new FormData(f).entries());
+
+      if(form.password !== form.confirm){
+        Toast.show('รหัสผ่านไม่ตรงกัน','error'); return;
+      }
+
+      // บังคับสถานะเริ่มต้นเป็น pending เพื่อรอแอดมินอนุมัติ
+      form.role = 'pending';
+
+      const btn = e.currentTarget;
+      setLoading(btn, true, 'กำลังบันทึก...');
+      try{
+        const res = await fetch(`${API_BASE}?route=register_internal`, {
+          method: 'POST',
+          headers: {'Content-Type':'text/plain;charset=utf-8'},
+          body: JSON.stringify(form)
+        });
+        const data = await res.json().catch(()=> ({}));
+        if(res.ok && data?.ok){
+          Toast.show('ลงทะเบียนสำเร็จ: บัญชีอยู่ระหว่างรอผู้ดูแลระบบอนุมัติ','success');
+          // NEW: เคลียร์ฟอร์มหลังบันทึก
+          clearForm(f);
+          closeModal('internalModal');
+        }else{
+          Toast.show(data?.message || 'ลงทะเบียนไม่สำเร็จ','error');
+        }
+      }catch(err){
+        console.error(err);
+        Toast.show('ไม่สามารถลงทะเบียนได้','error');
+      }finally{ setLoading(btn, false); }
+    });
+
+    // ===== Register External (base64 images) =====
+    $('#btnExternalSubmit').addEventListener('click', async (e)=>{
+      e.preventDefault();
+      const f = $('#externalForm');
+      const fd = new FormData(f);
+      const form = Object.fromEntries(fd.entries());
+      if(form.password !== form.confirm){ Toast.show('รหัสผ่านไม่ตรงกัน','error'); return; }
+
+      const idFile = fd.get('idcard_img');
+      const faceFile = fd.get('portrait_img');
+      if(!(idFile && idFile.size) || !(faceFile && faceFile.size)){
+        Toast.show('กรุณาอัปโหลดภาพให้ครบ','error'); return;
+      }
+
+      const btn = e.currentTarget;
+      setLoading(btn, true, 'กำลังอัปโหลด...');
+      try{
+        const idObj = await fileToBase64(idFile);
+        const faceObj = await fileToBase64(faceFile);
+        const payload = { ...form, idcard_img: idObj, portrait_img: faceObj };
+
+        const res = await fetch(`${API_BASE}?route=register_external`, {
+          method: 'POST',
+          headers: {'Content-Type':'text/plain;charset=utf-8'},
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(()=> ({}));
+        if(res.ok && data?.ok){
+          Toast.show('ส่งคำขอลงทะเบียนแล้ว (รอตรวจสอบ)','success');
+          // NEW: เคลียร์ฟอร์ม + พรีวิวหลังบันทึก
+          clearForm(f);
+          idcardPreviewDataURL = null;
+          portraitPreviewDataURL = null;
+          closeModal('externalModal');
+        }else{
+          Toast.show(data?.message || 'ลงทะเบียนไม่สำเร็จ','error');
+        }
+      }catch(err){
+        console.error(err);
+        Toast.show('ไม่สามารถส่งคำขอได้','error');
+      }finally{ setLoading(btn, false); }
+    });
+
+    // ===== Forgot Password =====
+    $('#btnForgotSubmit').addEventListener('click', async (e)=>{
+      e.preventDefault();
+      const f = $('#forgotForm');
+      const form = Object.fromEntries(new FormData(f).entries());
+
+      const btn = e.currentTarget;
+      setLoading(btn, true, 'กำลังส่งคำขอ...');
+      try{
+        const res = await fetch(`${API_BASE}?route=forgot_password`, {
+          method: 'POST',
+          headers: {'Content-Type':'text/plain;charset=utf-8'},
+          body: JSON.stringify(form)
+        });
+        const data = await res.json().catch(()=> ({}));
+        if(res.ok && data?.ok){
+          Toast.show('ส่งคำขอแล้ว แอดมินจะตรวจสอบให้ครับ','success');
+          // NEW: เคลียร์ฟอร์มหลังบันทึก
+          clearForm(f);
+          closeModal('forgotModal');
+        }else{
+          Toast.show(data?.message || 'ส่งคำขอไม่สำเร็จ','error');
+        }
+      }catch(err){
+        console.error(err);
+        Toast.show('ไม่สามารถส่งคำขอได้','error');
+      }finally{ setLoading(btn, false); }
+    });
+
+  });
+</script>
+
 </body>
 </html>
