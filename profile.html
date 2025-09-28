@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>โปรไฟล์ผู้ใช้งาน</title>
 
   <!-- Tailwind -->
@@ -18,44 +18,52 @@
 
 
   <style>
-    /* ให้หน้าเลื่อนปกติ และรองรับ iOS momentum scroll */
-    html, body{
+    /* รีเซ็ตเล็กน้อยกันจอ “ไหลข้าง” */
+    * { box-sizing: border-box; }
+    html, body { width: 100%; }
+    
+    /* โหมดมือถือสไตล์แอป: ให้ทั้งหน้าเป็น app shell เดียว */
+    html, body {
       height: 100%;
-      overflow-y: auto;
+      overflow: hidden;                 /* ตัวหน้าไม่เลื่อน */
+      overscroll-behavior: none;        /* กัน bounce/scroll chaining */
+      -webkit-font-smoothing: antialiased;
+      -webkit-text-size-adjust: 100%;
+    }
+    
+    /* ใช้ body เป็น shell แนวตั้ง แล้วให้ main เป็นพื้นที่เลื่อนแทน */
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100dvh;               /* รองรับแถบ address บนมือถือ */
+      min-height: 100svh;               /* iOS 16+ small viewport */
+      font-family: 'Prompt', sans-serif;
+      background: linear-gradient(135deg,#eef2ff 0%,#f8fafc 100%);
+      overflow-x: hidden;               /* กันไหลข้าง */
+    }
+    
+    /* header ติดบน, รองรับ safe-area */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      padding-top: env(safe-area-inset-top);
+      backdrop-filter: saturate(180%) blur(8px);
+      -webkit-backdrop-filter: saturate(180%) blur(8px);
+    }
+    
+    /* main เป็นคอลัมน์เลื่อนหลักเพียงที่เดียว */
+    main {
+      flex: 1;
+      min-height: 0;                    /* สำคัญ: ให้ลูกสูงไม่ดัน */
+      overflow-y: auto;                 /* เลื่อนเฉพาะตรงนี้ */
       -webkit-overflow-scrolling: touch;
-      touch-action: pan-y;
+      overscroll-behavior-y: contain;   /* กันสโครลหลุดไปทั้งหน้า */
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
     }
     
-    /* เมื่อมีโมดัลเปิด: ล็อกพื้นหลังไม่ให้เลื่อน */
-    body.modal-open{
-      overflow: hidden;
-    }
-    
-    /* ===== Modal fixes ===== */
-    .modal{
-      position: fixed; inset: 0;
-      display: none;
-      align-items: center; justify-content: center;
-      background: rgba(0,0,0,.55);
-      z-index: 50;
-      overflow-y: auto;                /* สำคัญ: overlay เองเลื่อนได้ถ้าการ์ดล้นจอ */
-    }
-    .modal.show{ display:flex; }
-    
-    .modal-card{
-      background: #fff;
-      border-radius: 1rem;
-      width: 100%;
-      max-width: 560px;
-      box-shadow: 0 30px 60px -25px rgba(0,0,0,.35);
-      max-height: min(90vh, 90dvh);   /* จำกัดความสูงไม่ให้เกินจอ (รองรับ mobile) */
-      overflow: auto;                  /* สำคัญ: กล่องเนื้อหาเลื่อนภายในได้ */
-      -webkit-overflow-scrolling: touch;
-    }
-    
-    /* (เดิมมีอยู่แล้ว—คงไว้ได้) */
+    /* การ์ด/สไตล์เดิม */
     :root{ --card-radius: 1rem; }
-    body{ font-family:'Prompt',sans-serif; background:linear-gradient(135deg,#eef2ff 0%,#f8fafc 100%); }
     .card{ border-radius: var(--card-radius); box-shadow: 0 20px 50px -20px rgba(0,0,0,.15); }
     .avatar-ring{ box-shadow: 0 0 0 4px #fff, 0 0 0 6px rgba(59,130,246,.6); }
     .pill{ border-radius: 9999px; }
@@ -65,26 +73,34 @@
     .toast{ position:fixed; right:16px; top:16px; z-index:60; display:flex; flex-direction:column; gap:10px; }
     .toast-item{ background:#111827; color:#fff; padding:12px 14px; border-radius:12px; box-shadow:0 10px 20px -10px rgba(0,0,0,.3); min-width:260px; display:flex; gap:10px; }
     
-    /* ระหว่างโหลด: ซ่อน main จริง ปิดการคลิก และโชว์ skeleton */
-    html.app-loading main { 
-      opacity: 0;
-      pointer-events: none;
-    }
-    
-    /* โครงกระดูก (skeleton) */
+    /* Skeleton ระหว่างโหลด: ซ่อน main จริง */
+    html.app-loading main { opacity: 0; pointer-events: none; }
     #page-skeleton { display: none; }
-    html.app-loading #page-skeleton { 
-      display: block; 
+    html.app-loading #page-skeleton { display: block; }
+    
+    /* ===== Modal: ล็อกพื้นหลัง และให้การ์ดเลื่อนในตัวเองได้ ===== */
+    body.modal-open { overflow: hidden; } /* เผื่อมี fallback บางเบราว์เซอร์ */
+    
+    .modal{
+      position: fixed; inset: 0; display: none;
+      align-items: center; justify-content: center;
+      background: rgba(0,0,0,.55); z-index: 50;
+      overflow-y: auto;                 /* overlay เลื่อนถ้าการ์ดยาว */
+      padding: 16px;                    /* กันชิดขอบบนมือถือ */
     }
+    .modal.show{ display:flex; }
     
-    /* โมดัลยังใช้ได้ตามเดิม (ถ้ามี) */
-    body.modal-open { overflow: hidden; }
-    
-    /* เพิ่มความลื่นบนมือถือ */
-    html, body {
+    .modal-card{
+      background: #fff;
+      border-radius: 1rem;
+      width: 100%; max-width: 560px;
+      box-shadow: 0 30px 60px -25px rgba(0,0,0,.35);
+      max-height: min(90vh, 90dvh);    /* การ์ดไม่เกินจอ */
+      overflow: auto;                   /* เนื้อหาในการ์ดเลื่อนเอง */
       -webkit-overflow-scrolling: touch;
-      touch-action: pan-y;
+      margin: auto;                     /* จัดกลางเสมอ */
     }
+    
 
   </style>
 </head>
@@ -604,28 +620,45 @@
     }
   }
 
+  // Scroll lock ที่ไม่แกว่งจอ (รองรับ iOS)
+  let __lockY = 0;
+  function lockBodyScroll(){
+    __lockY = window.scrollY || document.documentElement.scrollTop || 0;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${__lockY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.classList.add('modal-open');
+  }
+  function unlockBodyScroll(){
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.classList.remove('modal-open');
+    window.scrollTo(0, __lockY || 0);
+  }
 
   function openModal(id){
     const el = document.getElementById(id);
     if(!el) return;
     el.classList.add('show');
-    // ล็อกพื้นหลังไม่ให้เลื่อน (เลื่อนเฉพาะใน modal)
-    document.body.classList.add('modal-open');
+    // ถ้าเป็น modal แรก -> ล็อกสโครล
+    if (!document.querySelector('.modal.show:not(#'+id+')')) {
+      lockBodyScroll();
+    }
   }
-  
   function closeModal(id){
     const el = document.getElementById(id);
     if(!el) return;
     el.classList.remove('show');
-    // ถ้าไม่มี modal ไหนเปิดอยู่แล้ว ค่อยปลดล็อกสกอร์ลพื้นหลัง
-    const anyOpen = Array.from(document.querySelectorAll('.modal')).some(m => m.classList.contains('show'));
-    if(!anyOpen){
-      document.body.classList.remove('modal-open');
+    // ถ้าไม่เหลือ modal เปิดอยู่ -> ปลดล็อก
+    if (!document.querySelector('.modal.show')) {
+      unlockBodyScroll();
     }
   }
-
-
-  // ปุ่ม [data-close] รวม
+  
+  // ปุ่ม [data-close] รวม (ของเดิมใช้ต่อได้)
   document.addEventListener('click', (e)=>{
     const btn = e.target.closest('[data-close]');
     if(!btn) return;
@@ -633,6 +666,7 @@
     if(id) closeModal(id);
   });
 
+  
   function bindData(data){
     $$('[data-bind]').forEach(el=>{
       const key = el.getAttribute('data-bind');
