@@ -16,7 +16,6 @@
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <script>document.documentElement.classList.add('app-loading');</script>
 
-
 <style>
   /* reset เล็กน้อย */
   *{ box-sizing:border-box }
@@ -83,57 +82,42 @@
   }
 
   /* ===== Manage table (เฉพาะแท็บจัดการ) ===== */
-  /* ให้การ์ดของแท็บ manage เป็นคอลัมน์และยอมยุบความสูงได้ */
   [data-pane="manage"].card{
     display:flex;
     flex-direction:column;
-    min-height:0;                 /* สำคัญ: ลูกจะไม่ดันสูงเกิน */
+    min-height:0;
   }
-  
-  /* โครงห่อกรอบตาราง – กินพื้นที่ที่เหลือในการ์ด */
   .manage-table-wrap{
     flex:1 1 auto;
-    min-height:0;                 /* สำคัญ */
+    min-height:0;
     display:flex;
     flex-direction:column;
   }
-  
-  /* กรอบสโครลเฉพาะตาราง */
   #mgTableFrame{
     flex:1 1 auto;
     min-height:0;
     height:100%;
-    max-height:none;              /* ใช้ความสูงจาก .manage-table-wrap */
+    max-height:none;
     overflow:auto;
     -webkit-overflow-scrolling:touch;
-    border:1px solid #e5e7eb;     /* gray-200 */
-    border-radius:.75rem;         /* rounded-lg */
+    border:1px solid #e5e7eb;
+    border-radius:.75rem;
     background:#fff;
   }
-  
-  /* บนจอเล็ก ถ้าตารางสูงไปให้กำหนดเพดาน */
   @media (max-width: 1024px){
     #mgTableFrame{ height:60vh; max-height:60vh; }
   }
-  
-  /* ตาราง + หัวตาราง sticky + ความกว้างคอลัมน์ */
   #mgTable{
     border-collapse:separate;
     table-layout:auto;
-    min-width:1380px;             /* ให้มีสโครลแนวนอนได้ถ้าจอแคบ */
+    min-width:1380px;
     width:100%;
   }
   #mgTable thead th{
-    position:sticky;
-    top:0;
-    z-index:1;
-    background:#fff;
+    position:sticky; top:0; z-index:1; background:#fff;
   }
-  
-  /* ส่วนใหญ่ไม่ตัดคำ ยกเว้นคอลัมน์งานให้พับบรรทัดได้ */
   .table-nowrap th, .table-nowrap td{ white-space:nowrap; }
   td.col-task{ white-space:normal; word-break:break-word; }
-
 </style>
 
 </head>
@@ -418,8 +402,6 @@
           </div>
         </div>
 
-
-
       <!-- Scan (OR staff only) -->
       <div class="card bg-white p-6" data-pane="scan" style="display:none;">
         <div class="flex items-center justify-between">
@@ -428,14 +410,10 @@
             <i class="fa-solid fa-camera mr-1"></i> สแกน QR Code
           </button>
         </div>
-      
-        <!-- พื้นที่สแกนด้วยกล้อง -->
         <div id="scannerWrap" class="hidden mt-4">
           <div class="relative rounded-xl border overflow-hidden bg-black">
             <video id="scanVideo" class="w-full h-64 object-cover" autoplay playsinline muted></video>
-            <!-- overlay กรอบสแกน -->
             <div class="absolute inset-0 pointer-events-none ring-2 ring-white/80 rounded-lg m-8"></div>
-            <!-- overlay สปินเนอร์ขณะอ่านข้อมูล -->
             <div id="scanBusy" class="absolute inset-0 bg-black/40 text-white hidden items-center justify-center">
               <div class="flex items-center gap-2 text-sm">
                 <i class="fa-solid fa-spinner fa-spin"></i>
@@ -447,11 +425,9 @@
             <button id="btnStopCamera" class="px-3 py-2 pill border hover:bg-gray-50">หยุดกล้อง</button>
             <span id="scanStatus" class="text-xs text-gray-500">กด “สแกน QR Code” เพื่อเริ่ม</span>
           </div>
-          <!-- แคนวาสสำหรับ jsQR (ซ่อน) -->
           <canvas id="scanCanvas" width="640" height="480" class="hidden"></canvas>
         </div>
       </div>
-
 
         <!-- Activity placeholder -->
         <div class="card bg-white p-6" data-pane="activity" style="display:none;">
@@ -472,11 +448,9 @@
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
-
       <div class="grid place-items-center py-2">
         <canvas id="qrCanvas" width="220" height="220" class="rounded-2xl border p-3 bg-white"></canvas>
       </div>
-
       <div class="flex gap-2 justify-center pt-4">
         <a id="btnDownloadQR" download="my_qr.png" class="px-3 py-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 inline-flex items-center">
           <i class="fa-solid fa-download mr-2"></i> ดาวน์โหลด
@@ -547,7 +521,6 @@
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
-
       <div id="scanPreviewBody" class="space-y-3 text-sm">
         <div class="grid gap-2">
           <div><span class="text-gray-500">ชื่อ-นามสกุล:</span> <span id="pvFullname" class="font-medium"></span></div>
@@ -557,18 +530,15 @@
           <div id="pvNote" class="text-xs text-gray-500"></div>
         </div>
       </div>
-
       <div class="flex gap-2 justify-end pt-4" id="scanPreviewActions"></div>
     </div>
   </div>
 
-  <!-- Skeleton overlay: โชว์ตอน html.app-loading -->
+  <!-- Skeleton overlay -->
   <div id="page-skeleton" class="fixed inset-0 z-50 bg-white">
     <div class="max-w-7xl mx-auto px-4 lg:px-6 py-6">
       <div class="animate-pulse space-y-6">
-        <!-- แถบบน -->
         <div class="h-12 bg-gray-200 rounded-xl"></div>
-        <!-- การ์ดหัวโปรไฟล์ -->
         <div class="bg-white rounded-2xl shadow p-6">
           <div class="flex items-center gap-4">
             <div class="w-24 h-24 rounded-full bg-gray-200"></div>
@@ -579,7 +549,6 @@
             </div>
           </div>
         </div>
-        <!-- การ์ดอื่น ๆ แบบคร่าว ๆ -->
         <div class="grid lg:grid-cols-[260px,1fr] gap-6">
           <div class="bg-white rounded-2xl shadow p-4 h-64">
             <div class="h-5 bg-gray-200 rounded w-24 mb-3"></div>
@@ -598,7 +567,6 @@
     </div>
   </div>
 
-  
   <!-- Toast -->
   <div class="toast" id="toast"></div>
 
