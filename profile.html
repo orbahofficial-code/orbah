@@ -296,7 +296,7 @@
                 <div class="text-xs text-gray-500">กรอกข้อมูลเข้าปฏิบัติงาน แล้วแสดง QR ให้เจ้าหน้าที่สแกน</div>
               </div>
               <button id="btnWorkCheckin" class="px-3 py-1.5 pill border text-sm hover:bg-gray-50">
-                กรอกข้อมูล / เช็คเอาต์
+                กรอกข้อมูลเข้าทำงาน / เช็คเอาต์
               </button>
             </div>
           </div>
@@ -589,6 +589,30 @@
       setTimeout(()=> item.remove(), timeout);
     }
   };
+
+  // ปุ่มกำลังทำงาน: ใส่/เอา spinner + disable ปุ่ม
+  function setBtnLoading(btn, on, textOn='กำลังตรวจสอบ...'){
+    if(!btn) return;
+    if(on){
+      btn.disabled = true;
+      btn.setAttribute('aria-busy','true');
+      if(!btn.dataset.origHtml) btn.dataset.origHtml = btn.innerHTML;
+      btn.innerHTML =
+        `<span class="inline-flex items-center gap-2">
+           <i class="fa-solid fa-spinner fa-spin"></i> ${textOn}
+         </span>`;
+      btn.classList.add('cursor-wait','opacity-70');
+    }else{
+      btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+      if(btn.dataset.origHtml){
+        btn.innerHTML = btn.dataset.origHtml;
+        delete btn.dataset.origHtml;
+      }
+      btn.classList.remove('cursor-wait','opacity-70');
+    }
+  }
+
 
   function openModal(id){
     const el = document.getElementById(id);
@@ -889,45 +913,82 @@
   }
 
   // ปุ่มหลัก: ถ้าไม่มีงานค้าง -> เปิดฟอร์มเช็คอิน, ถ้ามี -> แสดงสถานะ + ปุ่ม QR out
-  $('#btnWorkCheckin')?.addEventListener('click', async ()=>{
+  const btnWorkCheckin = $('#btnWorkCheckin');
+  
+  btnWorkCheckin?.addEventListener('click', async ()=>{
+    setBtnLoading(btnWorkCheckin, true);   // ⬅️ เริ่มหมุน
     try{
-      const r = await fetchActiveWork();
-      if (r && r.work && r.work.work_id && r.work.is_checked_in && !r.work.is_checked_out) {
+      const r = await (typeof fetchActiveWork === 'function'
+                        ? fetchActiveWork()
+                        : Promise.resolve(null)).catch(()=>null);
+  
+      if (r?.work?.work_id && r.work.is_checked_in && !r.work.is_checked_out) {
+        // มีงานค้างที่เช็คอินอยู่ -> เปิดสถานะงาน
         openWorkStatusModal(r);
-        return;
+      } else {
+        // ไม่มีงานค้าง -> เปิดฟอร์มกรอกงาน
+        openModal('workModal');
       }
-    }catch(_){}
-    openModal('workModal'); // ไม่มีงานค้าง
-  });
-
-  // บันทึกข้อมูลงาน + แสดง QR (Check-in)
-  $('#btnWorkSubmit')?.addEventListener('click', async (e)=>{
-    e.preventDefault();
-    const f = $('#workForm');
-    if(!f) return;
-    const task = f.task.value.trim();
-    const room = f.room.value.trim();
-    if(!task || !room){ Toast.show('กรุณากรอกข้อมูลให้ครบ','error'); return; }
-
-    try{
-      const username = localStorage.getItem('username');
-      const res = await apiPost('work_init', { username, task, room });
-      if(res?.ok && res.work_id){
-        closeModal('workModal');
-        const title = $('#qrTitle'); if(title) title.textContent = 'QR Check-in';
-        openModal('qrModal');
-        drawQR($('#qrCanvas'), buildWorkQrPayload(res.work_id, 'in'));
-        const url = $('#qrCanvas').toDataURL('image/png');
-        const dl  = $('#btnDownloadQR'); if (dl) dl.href = url || '#';
-        Toast.show('สร้าง QR Check-in แล้ว','success');
-      }else{
-        throw new Error(res?.message || 'ไม่สามารถสร้างรายการปฏิบัติงานได้');
-      }
-    }catch(err){
-      console.error(err);
-      Toast.show(err.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
+    } finally {
+      // หน่วงนิดให้ผู้ใช้เห็นว่ามีการทำงานจริง
+      setTimeout(()=> setBtnLoading(btnWorkCheckin, false), 200); // ⬅️ หยุดหมุน
     }
   });
+
+
+  // บันทึกข้อมูลงาน + แสดง QR (Check-in)
+const btnWorkSubmit = $('#btnWorkSubmit');
+
+btnWorkSubmit?.addEventListener('click', async (e)=>{
+  e.preventDefault();
+
+  const f = $('#workForm');
+  if(!f) return;
+
+  const task = f.task.value.trim();
+  const room = f.room.value.trim();
+  if(!task || !room){
+    Toast.show('กรุณากรอกข้อมูลให้ครบ','error');
+    return;
+  }
+
+  // เริ่มโหลดดิ้ง + กันกดซ้ำ + ล็อกฟอร์ม
+  setBtnLoading(btnWorkSubmit, true, 'กำลังสร้าง QR...');
+  const controls = Array.from(f.elements);
+  controls.forEach(el => el.disabled = true);
+
+  try{
+    const username = localStorage.getItem('username') || '';
+    const res = await apiPost('work_init', { username, task, room });
+    if(!res?.ok || !res.work_id) throw new Error(res?.message || 'ไม่สามารถสร้างรายการปฏิบัติงานได้');
+
+    // จด work ล่าสุด (ถ้าต้องใช้ต่อ)
+    try { localStorage.setItem('last_work_id', res.work_id); } catch(_){}
+
+    // เตรียม QR (ทำก่อนแล้วค่อยเปิด modal เพื่อลดเฟลช)
+    const canvas = $('#qrCanvas');
+    if (canvas) {
+      drawQR(canvas, buildWorkQrPayload(res.work_id, 'in'));
+      const url = canvas.toDataURL('image/png');
+      const dl  = $('#btnDownloadQR'); if (dl) dl.href = url || '#';
+    }
+    const title = $('#qrTitle'); if(title) title.textContent = 'QR Check-in';
+
+    // แสดงผล
+    closeModal('workModal');
+    openModal('qrModal');
+    Toast.show('สร้าง QR Check-in แล้ว','success');
+
+  }catch(err){
+    console.error(err);
+    Toast.show(err.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
+  }finally{
+    // ปลดล็อกฟอร์ม + ปิดโหลดดิ้ง
+    controls.forEach(el => el.disabled = false);
+    setBtnLoading(btnWorkSubmit, false);
+  }
+});
+
 
   // ปุ่มใน Work Status Modal: แสดง QR Check-out (ใช้ work_id เดิม)
   document.addEventListener('click', (e)=>{
