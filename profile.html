@@ -93,31 +93,34 @@
     display:flex;
     flex-direction:column;
   }
+  
+  /* กรอบสโครลเฉพาะตาราง (เสถียร ไม่พึ่ง JS) */
   #mgTableFrame{
     flex:1 1 auto;
     min-height:0;
-    height:100%;
-    max-height:none;
+    max-height:65vh;                 /* กำหนดเพดานความสูงชัดเจน */
     overflow:auto;
     -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;     /* กันสโครลทะลุไป body */
     border:1px solid #e5e7eb;
     border-radius:.75rem;
     background:#fff;
   }
-  @media (max-width: 1024px){
-    #mgTableFrame{ height:60vh; max-height:60vh; }
+  /* จอเล็ก */
+  @media (max-width:1024px){
+    #mgTableFrame{ max-height:60vh; }
   }
+
   #mgTable{
     border-collapse:separate;
     table-layout:auto;
     min-width:1380px;
     width:100%;
   }
-  #mgTable thead th{
-    position:sticky; top:0; z-index:1; background:#fff;
-  }
-  .table-nowrap th, .table-nowrap td{ white-space:nowrap; }
+  #mgTable thead th{ position:sticky; top:0; z-index:1; background:#fff; }
+  .table-nowrap th,.table-nowrap td{ white-space:nowrap; }
   td.col-task{ white-space:normal; word-break:break-word; }
+
 </style>
 
 </head>
@@ -1297,19 +1300,12 @@ function fmt(dt){ if(!dt) return '-'; const d = new Date(dt); return isNaN(d) ? 
 function diffHuman(start,end){ if(!start) return '-'; const s = +new Date(start); const e = end ? +new Date(end) : Date.now(); if(isNaN(s)||isNaN(e)) return '-'; let m = Math.max(0, Math.round((e-s)/60000)); const h = Math.floor(m/60); m%=60; return (h?`${h} ชม `:'')+`${m} นาที`; }
 
 /* styles for Manage (inject once if not already in <style>) */
-function ensureManageStyles(){
-  if (document.getElementById('mgTableStyles')) return;
-  const s = document.createElement('style');
-  s.id = 'mgTableStyles';
-  s.textContent = `
-    #mgTableFrame{max-height:65dvh;overflow:auto;border:1px solid #e5e7eb;border-radius:.75rem;background:#fff;-webkit-overflow-scrolling:touch;}
-    #mgTable{border-collapse:separate;table-layout:auto;min-width:1380px;width:100%;}
-    #mgTable thead th{position:sticky;top:0;z-index:1;background:#fff;}
-    .table-nowrap th,.table-nowrap td{white-space:nowrap;}
-    td.col-task{white-space:normal;word-break:break-word;}
-  `;
-  document.head.appendChild(s);
-}
+
+
+
+function ensureManageStyles(){ /* CSS อยู่ใน <style> แล้ว ไม่ต้องฉีดซ้ำ */ }
+
+
 function ensureManageTableFrame(){
   const frame = document.getElementById('mgTableFrame');
   const table = document.getElementById('mgTable');
