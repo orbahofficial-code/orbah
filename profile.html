@@ -650,65 +650,6 @@ const ROLE_TABS = {
   "or-staff": ["overview","scan","activity"]
 };
 
-  // ===== Helpers =====
-const $  = (s)=>document.querySelector(s);
-
-function getDriveFileId(input=''){
-  // รองรับทั้ง.../file/d/<id>/view, ?id=<id>, และใส่เป็น id ตรง ๆ
-  if(!input) return '';
-  const m1 = input.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if(m1) return m1[1];
-  const m2 = input.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  if(m2) return m2[1];
-  // ถ้าเป็น id เปล่า ๆ
-  if(/^[a-zA-Z0-9_-]{20,}$/.test(input)) return input;
-  return '';
-}
-
-function toImageSrc(urlOrId){
-  if(!urlOrId) return '';
-  // รองรับ base64 หรือ URL ปกติอยู่แล้ว
-  if(/^data:image\//.test(urlOrId) || /^blob:/.test(urlOrId)) return urlOrId;
-  if(/^https?:\/\//.test(urlOrId) && !/drive\.google\.com/.test(urlOrId)) return urlOrId;
-
-  // กรณี Google Drive -> แปลงเป็นรูปโดยตรง
-  const fid = getDriveFileId(urlOrId);
-  return fid ? `https://lh3.googleusercontent.com/d/${fid}=s256` : urlOrId;
-}
-
-// ===== Bind profile to UI =====
-function renderProfile(p){
-  // ข้อมูลตัวหนังสือ
-  const full = p.fullname || [p.first_name, p.last_name].filter(Boolean).join(' ') || '-';
-  const role = p.rolelabel || p.role || '';
-
-  const nameEl = document.querySelector('[data-bind="fullname"]');
-  const roleEl = document.querySelector('[data-bind="roleLabel"]');
-  if(nameEl) nameEl.textContent = full;
-  if(roleEl) roleEl.textContent = role;
-
-  // รูปโปรไฟล์
-  const avatarEl = $('#avatar');
-  const src =
-    toImageSrc(p.avatar_url || p.photo_url || p.avatar || p.photo || p.image);
-
-  if (avatarEl && src){
-    avatarEl.src = src;
-    avatarEl.alt = full || 'Profile';
-  }
-}
-
-// เรียกใช้เมื่อโหลดหน้า หรือหลังได้ข้อมูลโปรไฟล์จาก API
-document.addEventListener('DOMContentLoaded', ()=>{
-  if (window.currentProfile) {
-    renderProfile(window.currentProfile);
-  }
-});
-
-// ถ้าได้มาจาก async API:
-// get_profile().then(res => { window.currentProfile = res.data; renderProfile(res.data); });
-
-
 /* ========================== HELPERS ========================== */
 const $  = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
@@ -790,13 +731,37 @@ document.addEventListener('click', (e)=>{
 });
 
 
-// ช่วยตั้งรูปที่จุดเดียว
+// ===== helpers (ตั้งครั้งเดียวพอ) =====
+const qs  = (s)=>document.querySelector(s);
+const qsa = (s)=>Array.from(document.querySelectorAll(s));
+
+function getDriveFileId(input=''){
+  const m1 = input?.match?.(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (m1) return m1[1];
+  const m2 = input?.match?.(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (m2) return m2[1];
+  if (/^[a-zA-Z0-9_-]{20,}$/.test(input||'')) return input;
+  return '';
+}
+function toImageSrc(urlOrId){
+  if (!urlOrId) return '';
+  if (/^data:image\//.test(urlOrId) || /^blob:/.test(urlOrId)) return urlOrId;
+  if (/^https?:\/\//.test(urlOrId) && !/drive\.google\.com/.test(urlOrId)) return urlOrId;
+  const fid = getDriveFileId(urlOrId);
+  return fid ? `https://lh3.googleusercontent.com/d/${fid}=s256` : '';
+}
+
+// ===== ใช้ตั้งรูปที่จุดเดียว (คงไว้ แต่แก้ให้รองรับหลาย selector) =====
 function setAvatarSrc(src){
   if(!src) return false;
-  $$('img[data-bind="avatar"]').forEach(img => { img.src = src; });
+  qsa('img[data-bind="avatar"], #avatar').forEach(img=>{
+    img.src = src;
+    if(!img.alt) img.alt = 'Profile';
+  });
   return true;
 }
 
+// ===== โหลดรูป fallback จาก API ถ้า payload ไม่มีรูป =====
 async function loadAvatarFallback(username){
   try{
     const res = await fetch(`${API_BASE}?route=get_profile_photo&username=${encodeURIComponent(username)}`, {
@@ -806,54 +771,56 @@ async function loadAvatarFallback(username){
     const data = await res.json().catch(()=> ({}));
     if(res.ok && data?.ok && data?.base64){
       const src = `data:${data.mimeType||'image/png'};base64,${data.base64}`;
-      setAvatarSrc(src);
-      return true;
+      return setAvatarSrc(src);
     }
   }catch(_){}
   return false;
 }
 
+// ===== bind ข้อมูลลงหน้า =====
 function bindData(data){
-  $$('[data-bind]').forEach(el=>{
+  qsa('[data-bind]').forEach(el=>{
     const key = el.getAttribute('data-bind');
 
-    if(key === 'avatar'){
-      // 1) URL ตรง
-      if (setAvatarSrc(data.avatar_url)) return;
+    if (key === 'avatar'){
+      // ลำดับความสำคัญ: url/id → dataURL → (mime+base64) → fallback
+      const direct =
+        toImageSrc(data.avatar_url || data.photo_url || data.avatar || data.photo || '') ||
+        (data.avatar_data_url || '');
 
-      // 2) data URL ตรง
-      if (setAvatarSrc(data.avatar_data_url)) return;
+      if (setAvatarSrc(direct)) return;
 
-      // 3) คู่ mime + base64
       if (data.avatar_base64){
         const mime = data.avatar_mime || 'image/png';
         if (setAvatarSrc(`data:${mime};base64,${data.avatar_base64}`)) return;
       }
 
-      // 4) ไม่มีใน payload: ใส่ placeholder ชั่วคราว แล้วไปโหลดแบบ fallback
+      // fallback
       setAvatarSrc('https://placehold.co/240x240/png?text=PROFILE');
       const username = localStorage.getItem('username') || data.username || '';
       if (username) loadAvatarFallback(username);
       return;
     }
 
-    if(key==='workplaceOrCompany'){
+    if (key === 'workplaceOrCompany'){
       el.textContent = data.workplace || data.company || '-';
     }else{
       el.textContent = (data[key] ?? '') + '';
     }
   });
 
-  const form = $('#editForm');
+  const form = qs('#editForm');
   if(form){
-    form.first_name.value = data.first_name || '';
-    form.last_name.value  = data.last_name  || '';
-    form.position.value   = data.position   || '';
-    form.workplace.value  = data.workplace || data.company || '';
-    form.email.value      = data.email      || '';
-    form.phone.value      = data.phone      || '';
+    // ใช้ form.elements ปลอดภัยกว่าเข้าตรง ๆ
+    form.elements['first_name'] && (form.elements['first_name'].value = data.first_name || '');
+    form.elements['last_name']  && (form.elements['last_name'].value  = data.last_name  || '');
+    form.elements['position']   && (form.elements['position'].value   = data.position   || '');
+    form.elements['workplace']  && (form.elements['workplace'].value  = data.workplace || data.company || '');
+    form.elements['email']      && (form.elements['email'].value      = data.email      || '');
+    form.elements['phone']      && (form.elements['phone'].value      = data.phone      || '');
   }
 }
+
 
 
 /* ===== Misc utils ===== */
