@@ -16,7 +16,42 @@
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
+    /* ให้หน้าเลื่อนปกติ และรองรับ iOS momentum scroll */
+    html, body{
+      height: 100%;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+    }
+    
+    /* เมื่อมีโมดัลเปิด: ล็อกพื้นหลังไม่ให้เลื่อน */
+    body.modal-open{
+      overflow: hidden;
+    }
+    
+    /* ===== Modal fixes ===== */
+    .modal{
+      position: fixed; inset: 0;
+      display: none;
+      align-items: center; justify-content: center;
+      background: rgba(0,0,0,.55);
+      z-index: 50;
+      overflow-y: auto;                /* สำคัญ: overlay เองเลื่อนได้ถ้าการ์ดล้นจอ */
+    }
+    .modal.show{ display:flex; }
+    
+    .modal-card{
+      background: #fff;
+      border-radius: 1rem;
+      width: 100%;
+      max-width: 560px;
+      box-shadow: 0 30px 60px -25px rgba(0,0,0,.35);
+      max-height: min(90vh, 90dvh);   /* จำกัดความสูงไม่ให้เกินจอ (รองรับ mobile) */
+      overflow: auto;                  /* สำคัญ: กล่องเนื้อหาเลื่อนภายในได้ */
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    /* (เดิมมีอยู่แล้ว—คงไว้ได้) */
     :root{ --card-radius: 1rem; }
     body{ font-family:'Prompt',sans-serif; background:linear-gradient(135deg,#eef2ff 0%,#f8fafc 100%); }
     .card{ border-radius: var(--card-radius); box-shadow: 0 20px 50px -20px rgba(0,0,0,.15); }
@@ -25,47 +60,9 @@
     .sidebar-item.active{ background: #eef2ff; color: #1d4ed8; font-weight: 600; }
     .grid-def{ grid-template-columns: 1fr 1fr; }
     @media (max-width: 1024px){ .grid-def{ grid-template-columns: 1fr; } }
-    .modal{ position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.55); z-index: 50; }
-    .modal.show{ display:flex; }
-    .modal-card{ background: #fff; border-radius: 1rem; width: 100%; max-width: 560px; box-shadow: 0 30px 60px -25px rgba(0,0,0,.35); }
     .toast{ position:fixed; right:16px; top:16px; z-index:60; display:flex; flex-direction:column; gap:10px; }
     .toast-item{ background:#111827; color:#fff; padding:12px 14px; border-radius:12px; box-shadow:0 10px 20px -10px rgba(0,0,0,.3); min-width:260px; display:flex; gap:10px; }
-
-      /* --- Scroll fixes --- */
-      html, body {
-        height: 100%;
-        overflow-y: auto;             /* ให้หน้าเพจเลื่อนแนวตั้งได้เสมอ */
-        -webkit-overflow-scrolling: touch;  /* โมเมนตัมสกอร์ลบน iOS */
-        overscroll-behavior-y: contain;     /* กันดึงเด้งเกินหน้า */
-        touch-action: pan-y;                /* บอกชัดว่า gesture หลักคือเลื่อนแนวตั้ง */
-      }
-      
-      /* เมื่อเปิด modal เราจะล็อกพื้นหลัง (เลื่อนได้เฉพาะในกล่อง modal) */
-      body.modal-open {
-        overflow: hidden;
-      }
-      
-      /* ตัว modal เองให้เลื่อนภายในได้ถ้าคอนเทนต์ยาว */
-      .modal {
-        overflow-y: auto;      /* เผื่อกล่อง modal-card ยาวกว่าจอ */
-      }
-      
-      /* กล่องเนื้อหาใน modal: จำกัดความสูงแล้วค่อยเลื่อนภายใน */
-      .modal-card {
-        max-height: 90vh;      /* ไม่เกินความสูงจอ */
-        overflow: auto;        /* เลื่อนภายในกล่อง */
-        -webkit-overflow-scrolling: touch;
-      }
-      
-      /* iOS viewport height quirks */
-      @supports (-webkit-touch-callout: none) {
-        html, body {
-          height: -webkit-fill-available;
-        }
-        body {
-          min-height: -webkit-fill-available;
-        }
-      }
+    
 
   </style>
 </head>
