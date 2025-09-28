@@ -1291,167 +1291,129 @@ function setActiveTab(tab){
   }
 }
 
-/* ========================== MANAGE TAB (single source) ========================== */
-let __manageBooted = false;
+ // ---- Admin Manage Tab ----
+  let __manageBooted = false;
 
-/* utils for Manage */
-function ymd(d){ const dt = d instanceof Date ? d : new Date(d); const mm = String(dt.getMonth()+1).padStart(2,'0'); const dd = String(dt.getDate()).padStart(2,'0'); return `${dt.getFullYear()}-${mm}-${dd}`; }
-function fmt(dt){ if(!dt) return '-'; const d = new Date(dt); return isNaN(d) ? String(dt||'-') : d.toLocaleString(); }
-function diffHuman(start,end){ if(!start) return '-'; const s = +new Date(start); const e = end ? +new Date(end) : Date.now(); if(isNaN(s)||isNaN(e)) return '-'; let m = Math.max(0, Math.round((e-s)/60000)); const h = Math.floor(m/60); m%=60; return (h?`${h} ชม `:'')+`${m} นาที`; }
-
-/* styles for Manage (inject once if not already in <style>) */
-
-
-
-function ensureManageStyles(){ /* CSS อยู่ใน <style> แล้ว ไม่ต้องฉีดซ้ำ */ }
-
-
-function ensureManageTableFrame(){
-  const frame = document.getElementById('mgTableFrame');
-  const table = document.getElementById('mgTable');
-  if (!frame || !table) return null;
-  table.style.minWidth = '1380px';
-  table.style.width = '100%';
-  table.style.tableLayout = 'auto';
-  return { frame, table };
-}
-
-/* API for Manage */
-async function fetchAdminSummary(params){
-  const res = await apiPost('work_admin_summary', params);
-  if(!res?.ok) throw new Error(res?.message || 'โหลดสรุปล้มเหลว');
-  return res.summary || { total:0, pending:0, active:0, done:0 };
-}
-async function fetchAdminList(params){
-  const res = await apiPost('work_admin_list', params);
-  if(!res?.ok) throw new Error(res?.message || 'โหลดรายการล้มเหลว');
-  return res.rows || [];
-}
-
-/* cell builders */
-function tdText(txt, cls = '', title) {
-  const td = document.createElement('td');
-  td.className = `py-2 px-3 ${cls}`.trim();
-  td.textContent = (txt ?? '-') + '';
-  if (title) td.title = title + '';
-  return td;
-}
-function tdTask(txt) {
-  const td = document.createElement('td');
-  td.className = 'py-2 px-3 col-task';
-  td.textContent = (txt ?? '-') + '';
-  return td;
-}
-function tdStatus(status, isActive) {
-  const td = document.createElement('td');
-  td.className = 'py-2 px-3 whitespace-nowrap';
-  const span = document.createElement('span');
-  span.className =
-    'px-2 py-0.5 pill text-xs ' +
-    (status === 'done'   ? 'bg-indigo-100 text-indigo-700' :
-     isActive            ? 'bg-emerald-100 text-emerald-700' :
-     status === 'pending'? 'bg-amber-100 text-amber-700' :
-                           'bg-gray-100 text-gray-700');
-  span.textContent = status || '-';
-  td.appendChild(span);
-  return td;
-}
-function tdUserTime(name, time) {
-  const td = document.createElement('td');
-  td.className = 'py-2 px-3 whitespace-nowrap';
-  const l1 = document.createElement('div'); l1.textContent = name || '-';
-  const l2 = document.createElement('div'); l2.className = 'text-xs text-gray-500'; l2.textContent = fmt(time);
-  td.appendChild(l1); td.appendChild(l2);
-  return td;
-}
-
-/* render list */
-async function loadManage(){
-  const from   = document.getElementById('mgFrom')?.value || ymd(new Date());
-  const to     = document.getElementById('mgTo')?.value   || ymd(new Date());
-  const status = document.getElementById('mgStatus')?.value || 'all';
-  const role   = document.getElementById('mgRole')?.value   || 'external';
-  const q      = document.getElementById('mgQuery')?.value?.trim() || '';
-
-  ensureManageStyles();
-  ensureManageTableFrame();
-
-  const [summary, rows] = await Promise.all([
-    fetchAdminSummary({ from, to, status, role, q }),
-    fetchAdminList   ({ from, to, status, role, q })
-  ]);
-
-  $('#sumTotal').textContent   = summary.total ?? rows.length;
-  $('#sumPending').textContent = summary.pending ?? 0;
-  $('#sumActive').textContent  = summary.active ?? 0;
-  $('#sumDone').textContent    = summary.done ?? 0;
-
-  const tb = document.getElementById('mgTbody');
-  tb.innerHTML = '';
-  if (!rows.length){
-    const tr = document.createElement('tr');
-    const td = document.createElement('td');
-    td.colSpan = 9; td.className = 'py-3 px-3 text-gray-400'; td.textContent = 'ไม่พบข้อมูลตามเงื่อนไข';
-    tr.appendChild(td); tb.appendChild(tr);
-    return;
+  function ymd(d){
+    const dt = d instanceof Date ? d : new Date(d);
+    const mm = String(dt.getMonth()+1).padStart(2,'0');
+    const dd = String(dt.getDate()).padStart(2,'0');
+    return `${dt.getFullYear()}-${mm}-${dd}`;
+  }
+  function fmt(dt){
+    if(!dt) return '-';
+    const d = new Date(dt);
+    if (isNaN(d)) return String(dt||'-');
+    return d.toLocaleString();
+  }
+  function diffHuman(start,end){
+    if(!start) return '-';
+    const s = new Date(start).getTime();
+    const e = end ? new Date(end).getTime() : Date.now();
+    if(isNaN(s)||isNaN(e)) return '-';
+    let mins = Math.max(0, Math.round((e-s)/60000));
+    const h = Math.floor(mins/60); mins = mins%60;
+    return (h?`${h} ชม `:'') + `${mins} นาที`;
   }
 
-  const frag = document.createDocumentFragment();
-  rows.forEach(r=>{
-    const tr = document.createElement('tr');
-    tr.className = 'border-b align-top';
-    const isActive = (r.status === 'checked' && !r.checkout_time);
+  async function fetchAdminSummary(params){
+    const res = await apiPost('work_admin_summary', params);
+    if(!res?.ok) throw new Error(res?.message || 'โหลดสรุปล้มเหลว');
+    return res.summary || { total:0, pending:0, active:0, done:0 };
+  }
 
-    tr.appendChild(tdText(fmt(r.created_at), 'whitespace-nowrap', r.created_at));
-    tr.appendChild(tdText(r.fullname, 'whitespace-nowrap'));
-    tr.appendChild(tdText(r.company || r.workplace, 'whitespace-nowrap'));
-    tr.appendChild(tdTask(r.task));
-    tr.appendChild(tdText(r.room, 'whitespace-nowrap'));
-    tr.appendChild(tdStatus(r.status, isActive));
-    tr.appendChild(tdUserTime(r.checkin_by_name,  r.checkin_time));
-    tr.appendChild(tdUserTime(r.checkout_by_name, r.checkout_time));
-    tr.appendChild(tdText(diffHuman(r.checkin_time, r.checkout_time), 'whitespace-nowrap'));
+  async function fetchAdminList(params){
+    const res = await apiPost('work_admin_list', params);
+    if(!res?.ok) throw new Error(res?.message || 'โหลดรายการล้มเหลว');
+    return res.rows || [];
+  }
 
-    frag.appendChild(tr);
-  });
-  tb.appendChild(frag);
-}
+  async function loadManage(){
+    // เก็บค่าฟิลเตอร์
+    const from = $('#mgFrom')?.value || ymd(new Date());
+    const to   = $('#mgTo')?.value   || ymd(new Date());
+    const status = $('#mgStatus')?.value || 'all';
+    const role   = $('#mgRole')?.value || 'external';
+    const q      = $('#mgQuery')?.value?.trim() || '';
 
-/* boot once when entering tab */
-function bootManageTabOnce(){
-  if (__manageBooted) return;
-  __manageBooted = true;
+    // เรียก API
+    const [summary, rows] = await Promise.all([
+      fetchAdminSummary({ from, to, status, role, q }),
+      fetchAdminList({ from, to, status, role, q })
+    ]);
 
-  ensureManageStyles();
-  ensureManageTableFrame();
+    // สรุป
+    $('#sumTotal').textContent   = summary.total ?? rows.length;
+    $('#sumPending').textContent = summary.pending ?? 0;
+    $('#sumActive').textContent  = summary.active ?? 0;
+    $('#sumDone').textContent    = summary.done ?? 0;
 
-  const today = ymd(new Date());
-  const mgFrom = document.getElementById('mgFrom');
-  const mgTo   = document.getElementById('mgTo');
-  if (mgFrom) mgFrom.value = today;
-  if (mgTo)   mgTo.value   = today;
-
-  ['mgFrom','mgTo','mgStatus','mgRole'].forEach(id=>{
-    document.getElementById(id)?.addEventListener('change', ()=> {
-      loadManage().catch(err=>Toast.show(err.message,'error'));
+    // ตาราง
+    const tb = $('#mgTbody');
+    tb.innerHTML = '';
+    if (!rows.length){
+      tb.innerHTML = `<tr><td class="py-3 text-gray-400" colspan="9">ไม่พบข้อมูลตามเงื่อนไข</td></tr>`;
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    rows.forEach(r=>{
+      const tr = document.createElement('tr');
+      tr.className = 'border-b';
+      const isActive = (r.status==='checked' && !r.checkout_time);
+      tr.innerHTML = `
+        <td class="py-2 pr-4">${fmt(r.created_at)}</td>
+        <td class="py-2 pr-4">${r.fullname||'-'}</td>
+        <td class="py-2 pr-4">${r.company||r.workplace||'-'}</td>
+        <td class="py-2 pr-4">${r.task||'-'}</td>
+        <td class="py-2 pr-4">${r.room||'-'}</td>
+        <td class="py-2 pr-4">
+          <span class="px-2 py-0.5 pill text-xs ${r.status==='done'?'bg-indigo-100 text-indigo-700': isActive?'bg-emerald-100 text-emerald-700' : r.status==='pending'?'bg-amber-100 text-amber-700':'bg-gray-100 text-gray-700'}">
+            ${r.status||'-'}
+          </span>
+        </td>
+        <td class="py-2 pr-4">
+          <div>${r.checkin_by_name||'-'}</div>
+          <div class="text-xs text-gray-500">${fmt(r.checkin_time)}</div>
+        </td>
+        <td class="py-2 pr-4">
+          <div>${r.checkout_by_name||'-'}</div>
+          <div class="text-xs text-gray-500">${fmt(r.checkout_time)}</div>
+        </td>
+        <td class="py-2">${diffHuman(r.checkin_time, r.checkout_time)}</td>
+      `;
+      frag.appendChild(tr);
     });
-  });
-  let qTimer = null;
-  document.getElementById('mgQuery')?.addEventListener('input', ()=>{
-    clearTimeout(qTimer);
-    qTimer = setTimeout(()=> loadManage().catch(err=>Toast.show(err.message,'error')), 300);
-  });
-  document.getElementById('mgRefresh')?.addEventListener('click', ()=> {
+    tb.appendChild(frag);
+  }
+
+  function bootManageTabOnce(){
+    if (__manageBooted) return;
+    __manageBooted = true;
+
+    // ค่าเริ่มต้นเป็นวันนี้
+    const today = ymd(new Date());
+    if($('#mgFrom')) $('#mgFrom').value = today;
+    if($('#mgTo'))   $('#mgTo').value   = today;
+
+    // listener ฟิลเตอร์
+    ['mgFrom','mgTo','mgStatus','mgRole'].forEach(id=>{
+      $('#'+id)?.addEventListener('change', ()=> loadManage().catch(err=>Toast.show(err.message,'error')));
+    });
+    let qTimer = null;
+    $('#mgQuery')?.addEventListener('input', ()=>{
+      clearTimeout(qTimer);
+      qTimer = setTimeout(()=> loadManage().catch(err=>Toast.show(err.message,'error')), 300);
+    });
+    $('#mgRefresh')?.addEventListener('click', ()=> loadManage().catch(err=>Toast.show(err.message,'error')));
+
+    // โหลดรอบแรก
     loadManage().catch(err=>Toast.show(err.message,'error'));
+  }
+
+  // โหลดเมื่อสลับมาที่แท็บ manage
+  document.addEventListener('tabchange', (e)=>{
+    if (e?.detail?.tab === 'manage') bootManageTabOnce();
   });
-
-  loadManage().catch(err=>Toast.show(err.message,'error'));
-}
-
-/* hook from setActiveTab */
-document.addEventListener('tabchange', (e)=>{
-  if (e?.detail?.tab === 'manage') bootManageTabOnce();
-});
 </script>
 
 </body>
