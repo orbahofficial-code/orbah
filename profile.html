@@ -16,7 +16,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <script>document.documentElement.classList.add('app-loading');</script>
 
-  <style>
+<style>
   /* ===== Base: หน้าเลื่อนปกติ + รองรับ iOS momentum ===== */
   html, body{
     height: 100%;
@@ -70,74 +70,94 @@
   #page-skeleton { display: none; }
   html.app-loading #page-skeleton { display: block; }
 
+  /* ===============================
+     ป้องกันการ์ดอื่นถูกดันตอนเปิด "จัดการ"
+     =============================== */
+  /* ถ้ามีคลาส main-col ให้ใช้ (แนะนำ) */
+  .main-col{ min-width: 0; min-height: 0; }
+  /* เผื่อไม่ได้ใส่ main-col: จับ section หลักฝั่งขวาให้ยอมบีบตัว */
+  .max-w-7xl .grid > section.space-y-6{ min-width: 0; min-height: 0; }
+
   /* =========================================
      แยกสโครลเฉพาะ "ตารางจัดการ (Manage)"
      ========================================= */
-  /* ให้การ์ด Manage มีความสูงจำกัด และให้พื้นที่โตไปกับจอ */
   .manage-card{
     display: flex;
     flex-direction: column;
     gap: 1rem;                 /* ทดแทน mb ระหว่างส่วนหัว/สรุป/ตาราง */
     max-height: min(80vh, 80dvh);
     overflow: hidden;          /* ซ่อนสโครลหลักของการ์ด */
+    min-width: 0;              /* กันดันคอลัมน์กริด */
   }
 
-  /* กล่องตาราง: ให้เลื่อนทั้งแนวตั้งและแนวนอน */
-.manage-table-wrap{
-  flex: 1;
-  min-height: 0;
-  overflow-x: auto;           /* <-- เพิ่มย้ำแนวนอน */
-  overflow-y: auto;           /* แนวตั้ง */
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.75rem;
-  background: #fff;
-}
+  /* กล่องตาราง: ให้เลื่อนทั้งแนวตั้งและแนวนอน (มือถือได้จริง) */
+  .manage-table-wrap{
+    flex: 1;
+    min-height: 0;
+    max-width: 100%;                 /* ไม่ให้ดันออกนอกคอลัมน์ */
+    overflow-x: auto;                /* แนวนอน */
+    overflow-y: auto;                /* แนวตั้ง */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-x pan-y;       /* อนุญาตลากนิ้วทั้งสองแกน */
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;          /* rounded-xl */
+    background: #fff;
+    position: relative;
+  }
 
-/* ตารางด้านใน: ให้กว้างเท่าที่คอลัมน์ต้องการ แล้วค่อยเลื่อนข้าง */
-#mgTable{
-  width: max-content;         /* <-- สำคัญ: ให้ตารางกว้างเท่าคอนเทนต์จริง */
-  min-width: 100%;            /* แต่ไม่เล็กกว่าโครงการ์ด */
-  border-collapse: separate;
-  border-spacing: 0;
-}
+  /* โครงภายใน: กว้างเท่าคอนเทนต์จริง แต่ยังเคารพกรอบด้านนอก */
+  #mgTableFrame{
+    width: max-content;
+    min-width: 100%;
+  }
 
-/* กันคอลัมน์เบียดแนวนอนขั้นต่ำ (จะถูกแทนที่โดย width:max-content หากกว้างกว่า) */
-#mgTableFrame{ min-width: 960px; }
+  /* ตาราง: ขยายตามจำนวนคอลัมน์เพื่อให้เกิดสโครลข้าง */
+  #mgTable{
+    width: max-content;              /* สำคัญ */
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
 
-/* ไม่ตัดบรรทัดในตาราง (ช่วยให้เกิดเลื่อนข้าง) */
-.table-nowrap{ white-space: nowrap; }
+  /* ไม่ตัดบรรทัด (ให้เกิดสโครลแนวนอน) */
+  .table-nowrap{ white-space: nowrap; }
 
-/* header sticky ขณะเลื่อน (ใช้ได้ทั้งแนวตั้ง/แนวนอน) */
-#mgTable thead th{
-  position: sticky;
-  top: 0;
-  background: #ffffff;
-  z-index: 1;
-  box-shadow: 0 1px 0 0 rgba(0,0,0,.06);
-}
+  /* header sticky ขณะเลื่อน */
+  #mgTable thead th{
+    position: sticky;
+    top: 0;
+    background: #ffffff;
+    z-index: 1;
+    box-shadow: 0 1px 0 0 rgba(0,0,0,.06);
+  }
 
-/* ช่องตาราง */
-#mgTable th, #mgTable td{
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid #e5e7eb;
-  vertical-align: top;
-}
+  /* ช่องตาราง */
+  #mgTable th, #mgTable td{
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: top;
+  }
+  #mgTable tbody tr:hover{ background:#f9fafb; }
 
-/* สวยงาม: สไตล์สกอร์ลบาร์แนวนอน (เฉพาะ WebKit/Chromium) */
-.manage-table-wrap::-webkit-scrollbar{
-  height: 10px;
-}
-.manage-table-wrap::-webkit-scrollbar-thumb{
-  background: #c7cdd6;
-  border-radius: 9999px;
-}
-.manage-table-wrap::-webkit-scrollbar-track{
-  background: transparent;
-}
+  /* ===== ปรับให้เหมาะกับมือถือ: ลดพื้นที่ให้เลื่อนง่าย ===== */
+  @media (max-width: 640px){
+    #mgTable{ font-size: 0.875rem; }           /* text-sm */
+    #mgTable th, #mgTable td{ padding: 0.5rem 0.75rem; }
+    /* บังคับขั้นต่ำบางคอลัมน์เพื่อเลื่อนง่าย */
+    #mgTable th:nth-child(1), #mgTable td:nth-child(1){ min-width: 120px; } /* created */
+    #mgTable th:nth-child(2), #mgTable td:nth-child(2){ min-width: 140px; } /* ชื่อ */
+    #mgTable th:nth-child(4), #mgTable td:nth-child(4){ min-width: 160px; } /* งาน */
+    #mgTable th:nth-child(7), #mgTable td:nth-child(7),
+    #mgTable th:nth-child(8), #mgTable td:nth-child(8){ min-width: 180px; } /* เช็คอิน/เช็คเอาต์ */
+  }
 
+  /* ===== สกอร์ลบาร์ (สวยงาม) ===== */
+  .manage-table-wrap::-webkit-scrollbar{ height: 10px; }
+  .manage-table-wrap::-webkit-scrollbar-thumb{ background: #c7cdd6; border-radius: 9999px; }
+  .manage-table-wrap::-webkit-scrollbar-track{ background: transparent; }
 </style>
+
 
 </head>
 <body class="min-h-screen">
@@ -194,7 +214,7 @@
       </aside>
 
       <!-- Main Panel -->
-      <section class="space-y-6">
+      <section class="space-y-6 main-col">
 
         <!-- Profile Header Card -->
         <div class="card bg-white p-6">
