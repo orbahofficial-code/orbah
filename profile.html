@@ -17,77 +17,74 @@
   <script>document.documentElement.classList.add('app-loading');</script>
 
   <style>
-    /* ให้หน้าเลื่อนปกติ และรองรับ iOS momentum scroll */
-    html, body{
-      height: 100%;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-      touch-action: pan-y;
-    }
+  /* ===== Base: หน้าเลื่อนปกติ + รองรับ iOS momentum ===== */
+  html, body{
+    height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
 
-    /* เมื่อมีโมดัลเปิด: ล็อกพื้นหลังไม่ให้เลื่อน */
-    body.modal-open{ overflow: hidden; }
+  /* เมื่อมีโมดัลเปิด: ล็อกพื้นหลังไม่ให้เลื่อน */
+  body.modal-open{ overflow: hidden; }
 
-    /* ===== Modal fixes ===== */
-    .modal{
-      position: fixed; inset: 0;
-      display: none;
-      align-items: center; justify-content: center;
-      background: rgba(0,0,0,.55);
-      z-index: 50;
-      overflow-y: auto;                /* สำคัญ: overlay เองเลื่อนได้ถ้าการ์ดล้นจอ */
-    }
-    .modal.show{ display:flex; }
+  /* ===== Modal fixes ===== */
+  .modal{
+    position: fixed; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    background: rgba(0,0,0,.55);
+    z-index: 50;
+    overflow-y: auto;                /* overlay เองเลื่อนได้ถ้าการ์ดล้นจอ */
+  }
+  .modal.show{ display:flex; }
 
-    .modal-card{
-      background: #fff;
-      border-radius: 1rem;
-      width: 100%;
-      max-width: 560px;
-      box-shadow: 0 30px 60px -25px rgba(0,0,0,.35);
-      max-height: min(90vh, 90dvh);   /* จำกัดความสูงไม่ให้เกินจอ (รองรับ mobile) */
-      overflow: auto;                  /* สำคัญ: กล่องเนื้อหาเลื่อนภายในได้ */
-      -webkit-overflow-scrolling: touch;
-    }
+  .modal-card{
+    background: #fff;
+    border-radius: 1rem;
+    width: 100%;
+    max-width: 560px;
+    box-shadow: 0 30px 60px -25px rgba(0,0,0,.35);
+    max-height: min(90vh, 90dvh);   /* จำกัดความสูงไม่ให้เกินจอ (รองรับ mobile) */
+    overflow: auto;                  /* กล่องเนื้อหาเลื่อนภายในได้ */
+    -webkit-overflow-scrolling: touch;
+  }
 
-    /* (เดิมมีอยู่แล้ว—คงไว้ได้) */
-    :root{ --card-radius: 1rem; }
-    body{ font-family:'Prompt',sans-serif; background:linear-gradient(135deg,#eef2ff 0%,#f8fafc 100%); }
-    .card{ border-radius: var(--card-radius); box-shadow: 0 20px 50px -20px rgba(0,0,0,.15); }
-    .avatar-ring{ box-shadow: 0 0 0 4px #fff, 0 0 0 6px rgba(59,130,246,.6); }
-    .pill{ border-radius: 9999px; }
-    .sidebar-item.active{ background: #eef2ff; color: #1d4ed8; font-weight: 600; }
-    .grid-def{ grid-template-columns: 1fr 1fr; }
-    @media (max-width: 1024px){ .grid-def{ grid-template-columns: 1fr; } }
-    .toast{ position:fixed; right:16px; top:16px; z-index:60; display:flex; flex-direction:column; gap:10px; }
-    .toast-item{ background:#111827; color:#fff; padding:12px 14px; border-radius:12px; box-shadow:0 10px 20px -10px rgba(0,0,0,.3); min-width:260px; display:flex; gap:10px; }
+  /* ===== Theme (เดิม) ===== */
+  :root{ --card-radius: 1rem; }
+  body{ font-family:'Prompt',sans-serif; background:linear-gradient(135deg,#eef2ff 0%,#f8fafc 100%); }
+  .card{ border-radius: var(--card-radius); box-shadow: 0 20px 50px -20px rgba(0,0,0,.15); }
+  .avatar-ring{ box-shadow: 0 0 0 4px #fff, 0 0 0 6px rgba(59,130,246,.6); }
+  .pill{ border-radius: 9999px; }
+  .sidebar-item.active{ background: #eef2ff; color: #1d4ed8; font-weight: 600; }
+  .grid-def{ grid-template-columns: 1fr 1fr; }
+  @media (max-width: 1024px){ .grid-def{ grid-template-columns: 1fr; } }
+  .toast{ position:fixed; right:16px; top:16px; z-index:60; display:flex; flex-direction:column; gap:10px; }
+  .toast-item{ background:#111827; color:#fff; padding:12px 14px; border-radius:12px; box-shadow:0 10px 20px -10px rgba(0,0,0,.3); min-width:260px; display:flex; gap:10px; }
 
-    /* ระหว่างโหลด: ซ่อน main จริง ปิดการคลิก และโชว์ skeleton */
-    html.app-loading main { 
-      opacity: 0;
-      pointer-events: none;
-    }
-    #page-skeleton { display: none; }
-    html.app-loading #page-skeleton { display: block; }
+  /* ===== Skeleton ระหว่างโหลด ===== */
+  html.app-loading main { 
+    opacity: 0;
+    pointer-events: none;
+  }
+  #page-skeleton { display: none; }
+  html.app-loading #page-skeleton { display: block; }
 
-    /* เพิ่มความลื่นบนมือถือ (ย้ำ) */
-    html, body {
-      -webkit-overflow-scrolling: touch;
-      touch-action: pan-y;
-    }
-
-  /* ให้การ์ด Manage มีความสูงจำกัด และแยกสโครลเฉพาะตารางด้านใน */
+  /* =========================================
+     แยกสโครลเฉพาะ "ตารางจัดการ (Manage)"
+     ========================================= */
+  /* ให้การ์ด Manage มีความสูงจำกัด และให้พื้นที่โตไปกับจอ */
   .manage-card{
     display: flex;
     flex-direction: column;
-    gap: 1rem;                 /* ระยะห่างภายในแทน mb-4 เดิมด้านบน */
+    gap: 1rem;                 /* ทดแทน mb ระหว่างส่วนหัว/สรุป/ตาราง */
     max-height: min(80vh, 80dvh);
     overflow: hidden;          /* ซ่อนสโครลหลักของการ์ด */
   }
-  
+
   /* กล่องตาราง: สโครลเฉพาะส่วนนี้ */
   .manage-table-wrap{
-    flex: 1;                   /* กินพื้นที่ที่เหลือในการ์ด */
+    flex: 1;                   /* กินพื้นที่ที่เหลือใน .manage-card */
     min-height: 0;             /* ป้องกัน flex overflow */
     overflow: auto;            /* สโครลแนวตั้ง/แนวนอนเฉพาะตาราง */
     -webkit-overflow-scrolling: touch;
@@ -96,8 +93,16 @@
     border-radius: 0.75rem;    /* rounded-xl */
     background: #fff;
   }
-  
-  /* ทำหัวตาราง sticky ขณะเลื่อน */
+
+  /* ตารางภายใน */
+  #mgTable{
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .table-nowrap{ white-space: nowrap; }
+
+  /* ทำหัวตาราง sticky */
   #mgTable thead th{
     position: sticky;
     top: 0;
@@ -105,14 +110,28 @@
     z-index: 1;
     box-shadow: 0 1px 0 0 rgba(0,0,0,.06);
   }
-  
-  /* กันคอลัมน์เบียด และให้สโครลแนวนอนได้ถ้าจำเป็น */
+
+  /* เว้นความกว้างขั้นต่ำ กันคอลัมน์เบียด และให้เลื่อนแนวนอนได้เมื่อจำเป็น */
   #mgTableFrame{ min-width: 960px; }
-  .table-nowrap{ white-space: nowrap; }
-  #mgTable th, #mgTable td{ padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; }
+
+  /* ช่องตาราง */
+  #mgTable th, #mgTable td{
+    padding: 0.75rem 1rem;          /* .py-3 .px-4 */
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: top;
+  }
   #mgTable tbody tr:hover{ background:#f9fafb; }
 
-  </style>
+  /* (ถ้าต้องการคอลัมน์แรก sticky ซ้าย เพิ่มบล็อกนี้และปรับความกว้างให้เหมาะ)
+  #mgTable th:first-child, 
+  #mgTable td:first-child{
+    position: sticky;
+    left: 0;
+    background: #fff;
+    z-index: 2;
+  } */
+</style>
+
 </head>
 <body class="min-h-screen">
 
