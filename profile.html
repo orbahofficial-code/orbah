@@ -153,7 +153,7 @@
                 <tr class="border-b"><td class="py-2 pr-4 text-gray-500">username</td><td class="py-2" data-bind="username">username</td></tr>
                 <tr class="border-b"><td class="py-2 pr-4 text-gray-500">role</td><td class="py-2" data-bind="role">role</td></tr>
                 <tr class="border-b"><td class="py-2 pr-4 text-gray-500">first_name</td><td class="py-2" data-bind="first_name">ชื่อ</td></tr>
-                <tr class="border-b"><td class="py-2 pr-4 text-gray-500">last_name</td><td class="py-2" data-bind="last_name">นามสกุล</td></tr>
+                <tr class="border-b"><td class="py-2 pr-4 text-gray-500">last_name</</td><td class="py-2" data-bind="last_name">นามสกุล</td></tr>
                 <tr class="border-b"><td class="py-2 pr-4 text-gray-500">position</td><td class="py-2" data-bind="position">ตำแหน่ง</td></tr>
                 <tr class="border-b"><td class="py-2 pr-4 text-gray-500">workplace/company</td><td class="py-2" data-bind="workplaceOrCompany">หน่วยงาน</td></tr>
                 <tr class="border-b"><td class="py-2 pr-4 text-gray-500">email</td><td class="py-2" data-bind="email">email</td></tr>
@@ -229,7 +229,7 @@
           </div>
         </div>
 
-        <!-- Work (Check-in) -->
+        <!-- Work (Check-in / Check-out) -->
         <div class="card bg-white p-6" data-pane="work" style="display:none;">
           <h3 class="text-base font-semibold text-gray-800 mb-4">ปฏิบัติงาน</h3>
           <div class="p-4 border rounded-xl">
@@ -239,7 +239,7 @@
                 <div class="text-xs text-gray-500">กรอกข้อมูลเข้าปฏิบัติงาน แล้วแสดง QR ให้เจ้าหน้าที่สแกน</div>
               </div>
               <button id="btnWorkCheckin" class="px-3 py-1.5 pill border text-sm hover:bg-gray-50">
-                กรอกข้อมูล
+                กรอกข้อมูล / เช็คเอาต์
               </button>
             </div>
           </div>
@@ -249,14 +249,12 @@
         <div class="card bg-white p-6" data-pane="scan" style="display:none;">
           <h3 class="text-base font-semibold text-gray-800 mb-4">สแกน/ยืนยันการปฏิบัติงาน</h3>
 
-          <!-- วาง payload ที่อ่านได้ (สำรองกรณีพิมพ์/วางเอง) -->
           <div class="space-y-2 mb-4">
             <label for="scanPayload" class="text-sm text-gray-600">โค้ดที่อ่านได้จาก QR</label>
             <textarea id="scanPayload" class="w-full border rounded-lg px-3 py-2" rows="4" placeholder='เช่น {"w":"<work_id>","a":"in|out"}'></textarea>
             <p class="text-xs text-gray-500">หมายเหตุ: "a" = in (เช็คอิน) หรือ out (เช็คเอาต์)</p>
           </div>
 
-          <!-- ปุ่มการทำงาน -->
           <div class="flex flex-wrap items-center gap-2 mb-4">
             <button id="btnScanConfirm" class="px-3 py-2 pill bg-indigo-600 text-white hover:bg-indigo-700">ยืนยันจากโค้ด</button>
             <button id="btnScanClear" class="px-3 py-2 pill border hover:bg-gray-50">ล้างข้อมูล</button>
@@ -265,18 +263,15 @@
             </button>
           </div>
 
-          <!-- พื้นที่สแกนด้วยกล้อง -->
           <div id="scannerWrap" class="hidden">
             <div class="relative rounded-xl border overflow-hidden bg-black">
               <video id="scanVideo" class="w-full h-64 object-cover" autoplay playsinline muted></video>
-              <!-- overlay กรอบสแกน -->
               <div class="absolute inset-0 pointer-events-none ring-2 ring-white/80 rounded-lg m-8"></div>
             </div>
             <div class="flex items-center gap-2 pt-3">
               <button id="btnStopCamera" class="px-3 py-2 pill border hover:bg-gray-50">หยุดกล้อง</button>
               <span id="scanStatus" class="text-xs text-gray-500">กด “เปิดกล้องสแกน QR” เพื่อเริ่ม</span>
             </div>
-            <!-- แคนวาสสำหรับประมวลผลเฟรม (ซ่อน) -->
             <canvas id="scanCanvas" width="640" height="480" class="hidden"></canvas>
           </div>
 
@@ -353,33 +348,53 @@
     </div>
   </div>
 
-  <!-- Scan Preview Modal -->
-<div class="modal" id="scanPreviewModal">
-  <div class="modal-card p-6">
-    <div class="flex items-center justify-between mb-3">
-      <h4 class="text-lg font-semibold">ยืนยันการปฏิบัติงาน</h4>
-      <button class="text-gray-500 hover:text-gray-700" data-close="scanPreviewModal">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-    </div>
-
-    <div id="scanPreviewBody" class="space-y-3 text-sm">
-      <!-- ข้อมูลจะถูกใส่ด้วย JS -->
-      <div class="grid gap-2">
-        <div><span class="text-gray-500">ชื่อ-นามสกุล:</span> <span id="pvFullname" class="font-medium"></span></div>
-        <div><span class="text-gray-500">บริษัท/หน่วยงาน:</span> <span id="pvCompany" class="font-medium"></span></div>
-        <div><span class="text-gray-500">งาน/ภารกิจ:</span> <span id="pvTask" class="font-medium"></span></div>
-        <div><span class="text-gray-500">สถานที่ปฏิบัติงาน:</span> <span id="pvRoom" class="font-medium"></span></div>
-        <div id="pvNote" class="text-xs text-gray-500"></div>
+  <!-- Work Status Modal (แสดงก่อน Check-out) -->
+  <div class="modal" id="workStatusModal">
+    <div class="modal-card p-6">
+      <div class="flex items-center justify-between mb-3">
+        <h4 class="text-lg font-semibold">สถานะการปฏิบัติงาน</h4>
+        <button class="text-gray-500 hover:text-gray-700" data-close="workStatusModal">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="space-y-3 text-sm">
+        <div><span class="text-gray-500">ชื่อ-นามสกุล:</span> <span id="wsFullname" class="font-medium"></span></div>
+        <div><span class="text-gray-500">บริษัท/หน่วยงาน:</span> <span id="wsCompany" class="font-medium"></span></div>
+        <div><span class="text-gray-500">งาน/ภารกิจ:</span> <span id="wsTask" class="font-medium"></span></div>
+        <div><span class="text-gray-500">สถานที่ปฏิบัติงาน:</span> <span id="wsRoom" class="font-medium"></span></div>
+        <div id="wsNote" class="text-xs text-gray-500"></div>
+      </div>
+      <div class="flex gap-2 justify-end pt-4">
+        <button id="btnShowCheckoutQR" class="px-4 py-2 pill bg-rose-600 text-white hover:bg-rose-700">
+          <i class="fa-solid fa-right-from-bracket mr-1"></i> แสดง QR Check-out
+        </button>
       </div>
     </div>
+  </div>
 
-    <div class="flex gap-2 justify-end pt-4" id="scanPreviewActions">
-      <!-- ปุ่มจะถูกใส่/สลับโดย JS -->
+  <!-- Scan Preview Modal (ฝั่ง OR เมื่อสแกน) -->
+  <div class="modal" id="scanPreviewModal">
+    <div class="modal-card p-6">
+      <div class="flex items-center justify-between mb-3">
+        <h4 class="text-lg font-semibold">ยืนยันการปฏิบัติงาน</h4>
+        <button class="text-gray-500 hover:text-gray-700" data-close="scanPreviewModal">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div id="scanPreviewBody" class="space-y-3 text-sm">
+        <div class="grid gap-2">
+          <div><span class="text-gray-500">ชื่อ-นามสกุล:</span> <span id="pvFullname" class="font-medium"></span></div>
+          <div><span class="text-gray-500">บริษัท/หน่วยงาน:</span> <span id="pvCompany" class="font-medium"></span></div>
+          <div><span class="text-gray-500">งาน/ภารกิจ:</span> <span id="pvTask" class="font-medium"></span></div>
+          <div><span class="text-gray-500">สถานที่ปฏิบัติงาน:</span> <span id="pvRoom" class="font-medium"></span></div>
+          <div id="pvNote" class="text-xs text-gray-500"></div>
+        </div>
+      </div>
+
+      <div class="flex gap-2 justify-end pt-4" id="scanPreviewActions"></div>
     </div>
   </div>
-</div>
-
 
   <!-- Toast -->
   <div class="toast" id="toast"></div>
@@ -415,7 +430,7 @@
   function openModal(id){ const el = document.getElementById(id); if(el) el.classList.add("show"); }
   function closeModal(id){ const el = document.getElementById(id); if(el) el.classList.remove("show"); }
 
-  // ปุ่ม [data-close] แบบรวม (ลดการลืมผูก event)
+  // ปุ่ม [data-close] รวม
   document.addEventListener('click', (e)=>{
     const btn = e.target.closest('[data-close]');
     if(!btn) return;
@@ -424,7 +439,6 @@
   });
 
   function bindData(data){
-    // แสดงข้อมูลลง [data-bind]
     $$('[data-bind]').forEach(el=>{
       const key = el.getAttribute('data-bind');
       if(key==='avatar'){
@@ -436,7 +450,6 @@
       }
     });
 
-    // เติมฟอร์มแก้ไข
     const form = $('#editForm');
     if(form){
       form.first_name.value = data.first_name || '';
@@ -464,7 +477,6 @@
     const token = localStorage.getItem('auth_token');
     const username = localStorage.getItem('username');
     if(!token || !username){
-      // เด้งกลับหน้า login ถ้าไม่มี session
       window.location.href = 'index.html';
       return null;
     }
@@ -474,7 +486,7 @@
   async function apiPost(route, payload){
     const res = await fetch(`${API_BASE}?route=${encodeURIComponent(route)}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // ลด preflight
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload||{})
     });
     let data = {};
@@ -484,8 +496,6 @@
     }
     return data;
   }
-
-
 
   function buildQrPayload(profile){
     return JSON.stringify({ q: profile.qr_id });
@@ -510,7 +520,7 @@
       });
     });
 
-    // Tabs: เปิดตาม hash หากมี
+    // Tabs: hash
     window.addEventListener('hashchange', () => {
       const tab = (location.hash || '#overview').slice(1);
       setActiveTab(tab);
@@ -522,12 +532,10 @@
       window.location.href = 'index.html';
     });
 
-    // ต้องมี token/username ถึงไปต่อ
     const auth = ensureAuth();
     if (!auth) return;
 
     try {
-      // โหลดโปรไฟล์
       const res = await apiPost('get_profile', { username: auth.username });
       const profile = res.data;
       if (!res?.ok || !profile) throw new Error(res?.message || 'โหลดโปรไฟล์ไม่สำเร็จ');
@@ -538,11 +546,9 @@
       if (profile.fullname) localStorage.setItem('fullname', profile.fullname);
       if (profile.role)     localStorage.setItem('userRole', profile.role);
 
-      // ตั้งค่า UI ตาม role
       if (typeof configureRoleUI === 'function') {
         configureRoleUI(profile.role || localStorage.getItem('userRole') || 'external');
       } else {
-        // เคารพ hash ถ้ามี
         const firstTab = (location.hash || '#overview').slice(1);
         setActiveTab(firstTab);
       }
@@ -576,7 +582,7 @@
     }
   });
 
-  // แสดง QR (ใช้ qr_id จาก currentProfile)
+  // แสดง QR ส่วนตัว (qr_id)
   $('#btnShowQR')?.addEventListener('click', () => {
     const qrId = (window.currentProfile && window.currentProfile.qr_id) || '';
     const payload = buildQrPayload({ qr_id: qrId });
@@ -638,13 +644,50 @@
     }catch(e){ /* ignore */ }
   });
 
-  // -- helper: สร้าง payload สำหรับงานรอบนี้ (คนสแกนจะได้ work_id ไปยืนยัน)
-  function buildWorkQrPayload(work_id){ return JSON.stringify({ w: work_id }); }
+  // ===== Check-in / Check-out (ตาม logic ที่ขอ) =====
+  function buildWorkQrPayload(work_id, action = 'in'){
+    return JSON.stringify({ w: work_id, a: action });
+  }
 
-  // เปิด/ปิดโมดัลกรอกงาน
-  $('#btnWorkCheckin')?.addEventListener('click', ()=> openModal('workModal'));
+  let __activeWork = null;
 
-  // บันทึกข้อมูลงาน + แสดง QR
+  async function fetchActiveWork(){
+    const username = localStorage.getItem('username');
+    if(!username) return null;
+    try{
+      const res = await apiPost('work_get_active', { username });
+      if(res?.ok && res.work && res.work.work_id) return res; // { ok, work:{...}, profile:{...} }
+    }catch(_){}
+    return null;
+  }
+
+  function openWorkStatusModal(data){
+    const profile = data.profile || {};
+    const work = data.work || {};
+    __activeWork = work;
+
+    const fn = document.getElementById('wsFullname'); if (fn) fn.textContent = profile.fullname || localStorage.getItem('fullname') || '-';
+    const cp = document.getElementById('wsCompany');  if (cp) cp.textContent = profile.company || profile.workplace || '-';
+    const tk = document.getElementById('wsTask');     if (tk) tk.textContent = work.task || '-';
+    const rm = document.getElementById('wsRoom');     if (rm) rm.textContent = work.room || '-';
+    const nt = document.getElementById('wsNote');     if (nt) nt.textContent = work.started_at ? ('เริ่ม: ' + work.started_at) : '';
+
+    openModal('workStatusModal');
+  }
+
+  // ปุ่มหลัก: ถ้าไม่มีงานค้าง -> เปิดฟอร์มเช็คอิน, ถ้ามี -> แสดงสถานะ + ปุ่ม QR out
+  $('#btnWorkCheckin')?.addEventListener('click', async ()=>{
+    try{
+      const r = await fetchActiveWork();
+      if (r && r.work && r.work.work_id && r.work.is_checked_in && !r.work.is_checked_out) {
+        openWorkStatusModal(r);
+        return;
+      }
+    }catch(_){}
+    openModal('workModal'); // ไม่มีงานค้าง
+  });
+
+  // บันทึกข้อมูลงาน + แสดง QR (Check-in)
   $('#btnWorkSubmit')?.addEventListener('click', async (e)=>{
     e.preventDefault();
     const f = $('#workForm');
@@ -660,7 +703,7 @@
         closeModal('workModal');
         const title = $('#qrTitle'); if(title) title.textContent = 'QR Check-in';
         openModal('qrModal');
-        drawQR($('#qrCanvas'), buildWorkQrPayload(res.work_id));
+        drawQR($('#qrCanvas'), buildWorkQrPayload(res.work_id, 'in'));
         const url = $('#qrCanvas').toDataURL('image/png');
         const dl  = $('#btnDownloadQR'); if (dl) dl.href = url || '#';
         Toast.show('สร้าง QR Check-in แล้ว','success');
@@ -673,30 +716,35 @@
     }
   });
 
+  // ปุ่มใน Work Status Modal: แสดง QR Check-out (ใช้ work_id เดิม)
+  document.addEventListener('click', (e)=>{
+    if(e.target && e.target.id === 'btnShowCheckoutQR'){
+      if(!__activeWork || !__activeWork.work_id){ Toast.show('ไม่พบงานที่ค้างอยู่','error'); return; }
+      closeModal('workStatusModal');
+      const title = $('#qrTitle'); if(title) title.textContent = 'QR Check-out';
+      openModal('qrModal');
+      drawQR($('#qrCanvas'), buildWorkQrPayload(__activeWork.work_id, 'out'));
+      const url = $('#qrCanvas').toDataURL('image/png');
+      const dl  = $('#btnDownloadQR'); if (dl) dl.href = url || '#';
+      Toast.show('แสดง QR Check-out (work เดิม)','success');
+    }
+  });
+
   // ===== ฟังก์ชันตั้งค่า UI ตามบทบาท =====
   function configureRoleUI(role){
     const allowed = ROLE_TABS[role] || ['overview'];
-
-    // ซ่อนเมนูที่ไม่ได้รับอนุญาต
     $$('.sidebar-item').forEach(a=>{
       const tab = a.getAttribute('data-tab');
-      const show = allowed.includes(tab);
-      a.style.display = show ? '' : 'none';
+      a.style.display = allowed.includes(tab) ? '' : 'none';
     });
-
-    // ซ่อน pane ที่ไม่ได้รับอนุญาต
     $$('[data-pane]').forEach(p=>{
       const tab = p.getAttribute('data-pane');
       p.style.display = allowed.includes(tab) ? '' : 'none';
     });
-
-    // ถ้า role นี้คือ or-staff ให้ซ่อน pane work (กันซ้ำ)
     if (role === 'or-staff') {
       const workPane = document.querySelector('[data-pane="work"]');
       if (workPane) workPane.style.display = 'none';
     }
-
-    // ตั้งแท็บเริ่มต้นเป็น hash หรือแท็บแรกที่อนุญาต
     const firstTab = (location.hash || `#${allowed[0] || 'overview'}`).slice(1);
     setActiveTab(firstTab);
   }
@@ -734,7 +782,6 @@
         };
         scanLoopId = requestAnimationFrame(step);
       } else {
-        // fallback: jsQR
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         const step = () => {
           if (video.readyState === video.HAVE_ENOUGH_DATA) {
@@ -755,242 +802,184 @@
       Toast.show('เปิดกล้องไม่ได้ (ต้องใช้ผ่าน HTTPS และอนุญาตสิทธิ์กล้อง)', 'error');
     }
   }
-// ต้องมีตัวแปร global เหล่านี้ไว้ก่อนประกาศฟังก์ชัน
-// let scanStream = null;
-// let scanLoopId = null;
 
-function stopScanner(){
-  // 1) หยุด animation loop อย่างปลอดภัย
-  try {
-    if (typeof scanLoopId !== 'undefined' && scanLoopId) {
-      cancelAnimationFrame(scanLoopId);
-      scanLoopId = null;
-    }
-  } catch (_) {}
-
-  // 2) หยุดกล้องจาก <video> โดยตรง (เผื่อมีการผูก srcObject ที่นี่)
-  try {
-    const video = document.getElementById('scanVideo');
-    if (video) {
-      try { typeof video.pause === 'function' && video.pause(); } catch (_) {}
-      const vStream = video.srcObject;
-      if (vStream && typeof vStream.getTracks === 'function') {
-        vStream.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+  function stopScanner(){
+    try {
+      if (typeof scanLoopId !== 'undefined' && scanLoopId) {
+        cancelAnimationFrame(scanLoopId);
+        scanLoopId = null;
       }
-      video.srcObject = null;
-    }
-  } catch (_) {}
+    } catch (_) {}
 
-  // 3) หยุดกล้องจากตัวแปร scanStream (กันกรณีถือ reference แยกต่างหาก)
-  try {
-    if (scanStream && typeof scanStream.getTracks === 'function') {
-      scanStream.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
-    }
-  } catch (_) {}
-  finally {
-    // เคลียร์เสมอ
-    scanStream = null;
-  }
+    try {
+      const video = document.getElementById('scanVideo');
+      if (video) {
+        try { typeof video.pause === 'function' && video.pause(); } catch (_) {}
+        const vStream = video.srcObject;
+        if (vStream && typeof vStream.getTracks === 'function') {
+          vStream.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+        }
+        video.srcObject = null;
+      }
+    } catch (_) {}
 
-  // 4) อัปเดต UI แบบไม่ใช้ optional chaining (กัน browser เก่า)
-  try {
-    var statusEl = document.getElementById('scanStatus');
-    if (statusEl) statusEl.textContent = 'หยุดกล้องแล้ว';
-    var wrap = document.getElementById('scannerWrap');
-    if (wrap && !wrap.classList.contains('hidden')) wrap.classList.add('hidden');
-  } catch (_) {}
-}
-
-
-// เก็บสถานะการสแกนล่าสุด
-let __scanContext = { raw: null, work_id: null, qr_id: null, mode: 'in' }; 
-// mode: 'in' = ยังไม่ได้เช็คอิน, ให้แสดงปุ่ม Check in | 'out' = เช็คอินแล้ว, ให้แสดงปุ่ม Check out
-
-// วาดข้อมูลลง modal
-function fillScanPreviewUI(pv){
-  document.getElementById('pvFullname').textContent = pv.fullname || '-';
-  document.getElementById('pvCompany').textContent  = pv.company || pv.workplace || '-';
-  document.getElementById('pvTask').textContent     = pv.task || '-';
-  document.getElementById('pvRoom').textContent     = pv.room || '-';
-
-  const note = document.getElementById('pvNote');
-  if (pv.status_text) {
-    note.textContent = pv.status_text;
-    note.style.display = '';
-  } else {
-    note.style.display = 'none';
-  }
-
-  // ปุ่ม
-  const act = document.getElementById('scanPreviewActions');
-  act.innerHTML = '';
-  if (__scanContext.mode === 'in') {
-    // ปุ่มเขียว Check in
-    const btnIn = document.createElement('button');
-    btnIn.className = 'px-4 py-2 pill bg-emerald-600 text-white hover:bg-emerald-700';
-    btnIn.innerHTML = '<i class="fa-solid fa-right-to-bracket mr-1"></i> Check in';
-    btnIn.addEventListener('click', handleConfirmCheckIn);
-    act.appendChild(btnIn);
-  } else {
-    // ปุ่มแดง Check out
-    const btnOut = document.createElement('button');
-    btnOut.className = 'px-4 py-2 pill bg-rose-600 text-white hover:bg-rose-700';
-    btnOut.innerHTML = '<i class="fa-solid fa-right-from-bracket mr-1"></i> Check out';
-    btnOut.addEventListener('click', handleConfirmCheckOut);
-    act.appendChild(btnOut);
-  }
-
-  openModal('scanPreviewModal');
-}
-
-// เรียก check-in
-async function handleConfirmCheckIn(){
-  try{
-    const checker_username = localStorage.getItem('username') || '';
-    const checker_name = localStorage.getItem('fullname') || checker_username;
-
-    // ถ้ามี work_id ใช้ work_confirm เลย
-    if (__scanContext.work_id) {
-      await apiPost('work_confirm', { work_id: __scanContext.work_id, checker_username, checker_name });
-      Toast.show('เช็คอินสำเร็จ','success');
-      closeModal('scanPreviewModal');
-      return;
+    try {
+      if (scanStream && typeof scanStream.getTracks === 'function') {
+        scanStream.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+      }
+    } catch (_) {} finally {
+      scanStream = null;
     }
 
-    // ถ้ามาจาก QR ส่วนตัว (qr_id) ให้ backend เปิดงานล่าสุด/สร้างงานตามนโยบายที่ตั้งไว้
-    if (__scanContext.qr_id) {
-      // แนะนำให้มี route ฝั่งหลังบ้านชื่อ scan_confirm_in ที่รับ qr_id
-      const r = await apiPost('scan_confirm_in', { qr_id: __scanContext.qr_id, checker_username, checker_name });
-      if (r?.ok) {
+    try {
+      var statusEl = document.getElementById('scanStatus');
+      if (statusEl) statusEl.textContent = 'หยุดกล้องแล้ว';
+      var wrap = document.getElementById('scannerWrap');
+      if (wrap && !wrap.classList.contains('hidden')) wrap.classList.add('hidden');
+    } catch (_) {}
+  }
+
+  // ==== สแกนแล้วแสดงพรีวิวสำหรับ OR ====
+  let __scanContext = { raw: null, work_id: null, qr_id: null, mode: 'in' };
+
+  function fillScanPreviewUI(pv){
+    document.getElementById('pvFullname').textContent = pv.fullname || '-';
+    document.getElementById('pvCompany').textContent  = pv.company || pv.workplace || '-';
+    document.getElementById('pvTask').textContent     = pv.task || '-';
+    document.getElementById('pvRoom').textContent     = pv.room || '-';
+    const note = document.getElementById('pvNote');
+    if (pv.status_text) { note.textContent = pv.status_text; note.style.display = ''; }
+    else { note.style.display = 'none'; }
+
+    const act = document.getElementById('scanPreviewActions');
+    act.innerHTML = '';
+    if (__scanContext.mode === 'in') {
+      const btnIn = document.createElement('button');
+      btnIn.className = 'px-4 py-2 pill bg-emerald-600 text-white hover:bg-emerald-700';
+      btnIn.innerHTML = '<i class="fa-solid fa-right-to-bracket mr-1"></i> Check in';
+      btnIn.addEventListener('click', handleConfirmCheckIn);
+      act.appendChild(btnIn);
+    } else {
+      const btnOut = document.createElement('button');
+      btnOut.className = 'px-4 py-2 pill bg-rose-600 text-white hover:bg-rose-700';
+      btnOut.innerHTML = '<i class="fa-solid fa-right-from-bracket mr-1"></i> Check out';
+      btnOut.addEventListener('click', handleConfirmCheckOut);
+      act.appendChild(btnOut);
+    }
+
+    openModal('scanPreviewModal');
+  }
+
+  async function handleConfirmCheckIn(){
+    try{
+      const checker_username = localStorage.getItem('username') || '';
+      const checker_name = localStorage.getItem('fullname') || checker_username;
+      if (__scanContext.work_id) {
+        await apiPost('work_confirm', { work_id: __scanContext.work_id, checker_username, checker_name });
         Toast.show('เช็คอินสำเร็จ','success');
         closeModal('scanPreviewModal');
-      } else {
-        throw new Error(r?.message || 'เช็คอินไม่สำเร็จ');
+        return;
       }
-      return;
+      if (__scanContext.qr_id) {
+        const r = await apiPost('scan_confirm_in', { qr_id: __scanContext.qr_id, checker_username, checker_name });
+        if (r?.ok) { Toast.show('เช็คอินสำเร็จ','success'); closeModal('scanPreviewModal'); }
+        else throw new Error(r?.message || 'เช็คอินไม่สำเร็จ');
+        return;
+      }
+      throw new Error('ไม่มีข้อมูลงาน/QR ที่จะเช็คอิน');
+    }catch(err){
+      console.error(err);
+      Toast.show(err.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
     }
-
-    throw new Error('ไม่มีข้อมูลงาน/QR ที่จะเช็คอิน');
-  }catch(err){
-    console.error(err);
-    Toast.show(err.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
   }
-}
 
-// เรียก check-out
-async function handleConfirmCheckOut(){
-  try{
-    const checker_username = localStorage.getItem('username') || '';
-    const checker_name = localStorage.getItem('fullname') || checker_username;
-
-    // ถ้ามี work_id ใช้ work_checkout
-    if (__scanContext.work_id) {
-      await apiPost('work_checkout', { work_id: __scanContext.work_id, checker_username, checker_name });
-      Toast.show('เช็คเอาต์สำเร็จ','success');
-      closeModal('scanPreviewModal');
-      return;
-    }
-
-    // มาจาก QR ส่วนตัว
-    if (__scanContext.qr_id) {
-      // ฝั่งหลังบ้านรองรับ route ชื่อ scan_confirm_out
-      const r = await apiPost('scan_confirm_out', { qr_id: __scanContext.qr_id, checker_username, checker_name });
-      if (r?.ok) {
+  async function handleConfirmCheckOut(){
+    try{
+      const checker_username = localStorage.getItem('username') || '';
+      const checker_name = localStorage.getItem('fullname') || checker_username;
+      if (__scanContext.work_id) {
+        await apiPost('work_checkout', { work_id: __scanContext.work_id, checker_username, checker_name });
         Toast.show('เช็คเอาต์สำเร็จ','success');
         closeModal('scanPreviewModal');
-      } else {
-        throw new Error(r?.message || 'เช็คเอาต์ไม่สำเร็จ');
+        return;
       }
+      if (__scanContext.qr_id) {
+        const r = await apiPost('scan_confirm_out', { qr_id: __scanContext.qr_id, checker_username, checker_name });
+        if (r?.ok) { Toast.show('เช็คเอาต์สำเร็จ','success'); closeModal('scanPreviewModal'); }
+        else throw new Error(r?.message || 'เช็คเอาต์ไม่สำเร็จ');
+        return;
+      }
+      throw new Error('ไม่มีข้อมูลงาน/QR ที่จะเช็คเอาต์');
+    }catch(err){
+      console.error(err);
+      Toast.show(err.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
+    }
+  }
+
+  async function onQrDetected(text){
+    stopScanner();
+    const ta = $('#scanPayload'); if (ta) ta.value = text;
+    Toast.show('อ่าน QR สำเร็จ', 'success');
+
+    let obj = null;
+    try { obj = JSON.parse(text); } catch(e) { obj = null; }
+    if (!obj || (!obj.w && !obj.q)) {
+      Toast.show('QR นี้ไม่ใช่รูปแบบที่ระบบรองรับ','error');
       return;
     }
 
-    throw new Error('ไม่มีข้อมูลงาน/QR ที่จะเช็คเอาต์');
-  }catch(err){
-    console.error(err);
-    Toast.show(err.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
-  }
-}
+    __scanContext = { raw: text, work_id: obj.w || null, qr_id: obj.q || null, mode: 'in' };
 
-  
-  // เมื่อสแกนได้
-async function onQrDetected(text){
-  stopScanner();
-  const ta = $('#scanPayload'); if (ta) ta.value = text;
-  Toast.show('อ่าน QR สำเร็จ', 'success');
-
-  let obj = null;
-  try { obj = JSON.parse(text); } catch(e) { obj = null; }
-
-  if (!obj || (!obj.w && !obj.q)) {
-    Toast.show('QR นี้ไม่ใช่รูปแบบที่ระบบรองรับ','error');
-    return;
-  }
-
-  // เคลียร์ context
-  __scanContext = { raw: text, work_id: obj.w || null, qr_id: obj.q || null, mode: 'in' };
-
-  // 1) พยายามขอพรีวิวจาก backend (เส้นทางแนะนำ)
-  try {
-    const pv = await apiPost('scan_preview', { work_id: obj.w, qr_id: obj.q });
-    if (pv?.ok) {
-      __scanContext.mode = pv.mode === 'out' ? 'out' : 'in';
-      fillScanPreviewUI({
-        fullname: pv.profile?.fullname || '-',
-        company: pv.profile?.company || pv.profile?.workplace || '-',
-        task: pv.work?.task || '-',
-        room: pv.work?.room || '-',
-        status_text: pv.status_text || (pv.mode==='out' ? 'พบการเช็คอินก่อนหน้า' : '')
-      });
-      return;
-    }
-  } catch (e) {
-    // เงียบไว้ ไป fallback ต่อ
-  }
-
-  // 2) Fallback: แยกสองกรณี
-  let fullname = '-', company = '-', task = '-', room = '-', wantOut = false;
-
-  try{
-    if (obj.w) {
-      // เรียก work_preview: backend ควรคืน task/room และสถานะ (กำหนด mode ได้)
-      const r = await apiPost('work_preview', { work_id: obj.w });
-      if (r?.ok) {
-        fullname = r.profile?.fullname || '-';
-        company  = r.profile?.company || r.profile?.workplace || '-';
-        task     = r.work?.task || '-';
-        room     = r.work?.room || '-';
-        wantOut  = !!r.work?.is_checked_in; // ถ้าระบุว่ามีการเช็คอินแล้ว ให้ขึ้น Check out
+    try {
+      const pv = await apiPost('scan_preview', { work_id: obj.w, qr_id: obj.q });
+      if (pv?.ok) {
+        __scanContext.mode = pv.mode === 'out' ? 'out' : 'in';
+        fillScanPreviewUI({
+          fullname: pv.profile?.fullname || '-',
+          company: pv.profile?.company || pv.profile?.workplace || '-',
+          task: pv.work?.task || '-',
+          room: pv.work?.room || '-',
+          status_text: pv.status_text || (pv.mode==='out' ? 'พบการเช็คอินก่อนหน้า' : '')
+        });
+        return;
       }
-    } else if (obj.q) {
-      // เรียก profile_by_qr: เอาข้อมูลคน + งานล่าสุด (ถ้ามี)
-      const r = await apiPost('profile_by_qr', { qr_id: obj.q });
-      if (r?.ok) {
-        fullname = r.profile?.fullname || '-';
-        company  = r.profile?.company || r.profile?.workplace || '-';
-        task     = r.latest_work?.task || '-';
-        room     = r.latest_work?.room || '-';
-        wantOut  = !!r.latest_work?.is_checked_in;
+    } catch (_) {}
+
+    let fullname = '-', company = '-', task = '-', room = '-', wantOut = false;
+    try{
+      if (obj.w) {
+        const r = await apiPost('work_preview', { work_id: obj.w });
+        if (r?.ok) {
+          fullname = r.profile?.fullname || '-';
+          company  = r.profile?.company || r.profile?.workplace || '-';
+          task     = r.work?.task || '-';
+          room     = r.work?.room || '-';
+          wantOut  = !!r.work?.is_checked_in;
+        }
+      } else if (obj.q) {
+        const r = await apiPost('profile_by_qr', { qr_id: obj.q });
+        if (r?.ok) {
+          fullname = r.profile?.fullname || '-';
+          company  = r.profile?.company || r.profile?.workplace || '-';
+          task     = r.latest_work?.task || '-';
+          room     = r.latest_work?.room || '-';
+          wantOut  = !!r.latest_work?.is_checked_in;
+        }
       }
-    }
-  }catch(e){ /* ใช้ค่า default ต่อ */ }
+    }catch(e){}
 
-  __scanContext.mode = wantOut ? 'out' : 'in';
-  fillScanPreviewUI({
-    fullname, company, task, room,
-    status_text: wantOut ? 'พบการเช็คอินก่อนหน้า' : ''
-  });
-}
-
+    __scanContext.mode = wantOut ? 'out' : 'in';
+    fillScanPreviewUI({ fullname, company, task, room, status_text: wantOut ? 'พบการเช็คอินก่อนหน้า' : '' });
+  }
 
   // เปิด/หยุดกล้อง
   $('#btnOpenCamera')?.addEventListener('click', startScanner);
   $('#btnStopCamera')?.addEventListener('click', stopScanner);
 
-  // OR staff: ยืนยันจากโค้ดที่สแกนได้
+  // OR staff: ยืนยันจากโค้ด
   $('#btnScanConfirm')?.addEventListener('click', async ()=>{
     const raw = $('#scanPayload')?.value.trim();
     if(!raw){ Toast.show('กรุณาวางโค้ดที่อ่านจาก QR','error'); return; }
-
     let obj = null;
     try{ obj = JSON.parse(raw); }catch(e){ Toast.show('รูปแบบไม่ถูกต้อง (ต้องเป็น JSON)','error'); return; }
     if(!obj.w){ Toast.show('ไม่พบ work_id ในโค้ด','error'); return; }
@@ -1013,62 +1002,53 @@ async function onQrDetected(text){
   // ปุ่มล้างฟิลด์
   $('#btnScanClear')?.addEventListener('click', ()=> { const t=$('#scanPayload'); if(t) t.value=''; });
 
+  // ===== Tabs =====
   function setActiveTab(tab){
-  const panes = Array.from(document.querySelectorAll('[data-pane]'));
-  const items = Array.from(document.querySelectorAll('.sidebar-item'));
-  if (panes.length === 0) return;
+    const panes = Array.from(document.querySelectorAll('[data-pane]'));
+    const items = Array.from(document.querySelectorAll('.sidebar-item'));
+    if (panes.length === 0) return;
 
-  // ใช้ค่า tab จากพารามิเตอร์ > hash > overview
-  tab = (tab || (location.hash || '#overview').slice(1)).trim();
+    tab = (tab || (location.hash || '#overview').slice(1)).trim();
 
-  // หาแท็บปัจจุบัน (ก่อนเปลี่ยน)
-  const current =
-    document.querySelector('.sidebar-item.active')?.getAttribute('data-tab') ||
-    panes.find(p => p.style.display !== 'none')?.getAttribute('data-pane') ||
-    'overview';
+    const current =
+      document.querySelector('.sidebar-item.active')?.getAttribute('data-tab') ||
+      panes.find(p => p.style.display !== 'none')?.getAttribute('data-pane') ||
+      'overview';
 
-  // ถ้า tab ไม่อยู่ในรายการ pane ให้ fallback เป็น overview
-  const allowedTabs = new Set(panes.map(p => p.getAttribute('data-pane')));
-  if (!allowedTabs.has(tab)) tab = 'overview';
+    const allowedTabs = new Set(panes.map(p => p.getAttribute('data-pane')));
+    if (!allowedTabs.has(tab)) tab = 'overview';
 
-  // ถ้าออกจากแท็บ scan ให้ปิดกล้อง
-  if (typeof stopScanner === 'function' && current === 'scan' && tab !== 'scan') {
-    try { stopScanner(); } catch (_) {}
+    if (typeof stopScanner === 'function' && current === 'scan' && tab !== 'scan') {
+      try { stopScanner(); } catch (_) {}
+    }
+
+    items.forEach(a => {
+      const isActive = a.getAttribute('data-tab') === tab;
+      a.classList.toggle('active', isActive);
+      a.setAttribute('aria-current', isActive ? 'page' : 'false');
+    });
+
+    panes.forEach(p => {
+      p.style.display = (p.getAttribute('data-pane') === tab) ? '' : 'none';
+    });
+
+    const newHash = '#' + tab;
+    if (location.hash !== newHash) {
+      try { history.replaceState(null, '', newHash); }
+      catch (_) { location.hash = newHash; }
+    }
+
+    const firstFocusable = document.querySelector(
+      `[data-pane="${tab}"] a, [data-pane="${tab}"] button, [data-pane="${tab}"] input, [data-pane="${tab}"] select, [data-pane="${tab}"] textarea, [data-pane="${tab}"] [tabindex="0"]`
+    );
+    if (firstFocusable) {
+      try { firstFocusable.focus({ preventScroll: true }); } catch (_) {}
+    }
+
+    if (current !== tab) {
+      document.dispatchEvent(new CustomEvent('tabchange', { detail: { tab, prev: current } }));
+    }
   }
-
-  // อัปเดตเมนูด้านซ้าย
-  items.forEach(a => {
-    const isActive = a.getAttribute('data-tab') === tab;
-    a.classList.toggle('active', isActive);
-    a.setAttribute('aria-current', isActive ? 'page' : 'false');
-  });
-
-  // แสดง/ซ่อน pane
-  panes.forEach(p => {
-    p.style.display = (p.getAttribute('data-pane') === tab) ? '' : 'none';
-  });
-
-  // อัปเดต hash เมื่อจำเป็นเท่านั้น
-  const newHash = '#' + tab;
-  if (location.hash !== newHash) {
-    try { history.replaceState(null, '', newHash); }
-    catch (_) { location.hash = newHash; }
-  }
-
-  // โฟกัสองค์ประกอบแรกเพื่อการเข้าถึง
-  const firstFocusable = document.querySelector(
-    `[data-pane="${tab}"] a, [data-pane="${tab}"] button, [data-pane="${tab}"] input, [data-pane="${tab}"] select, [data-pane="${tab}"] textarea, [data-pane="${tab}"] [tabindex="0"]`
-  );
-  if (firstFocusable) {
-    try { firstFocusable.focus({ preventScroll: true }); } catch (_) {}
-  }
-
-  // ส่งอีเวนต์เมื่อเปลี่ยนแท็บจริง
-  if (current !== tab) {
-    document.dispatchEvent(new CustomEvent('tabchange', { detail: { tab, prev: current } }));
-  }
-}
-
 </script>
 </body>
 </html>
