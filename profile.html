@@ -1465,73 +1465,45 @@ $('#btnStopCamera')?.addEventListener('click', ()=> stopScanner(true));
   }
 
   
-// ---- Admin Manage Tab ----
+// ============== Admin Manage Tab (ONE SOURCE OF TRUTH) ==============
 let __manageBooted = false;
 
-function ymd(d){
-  const dt = d instanceof Date ? d : new Date(d);
-  const mm = String(dt.getMonth()+1).padStart(2,'0');
-  const dd = String(dt.getDate()).padStart(2,'0');
-  return `${dt.getFullYear()}-${mm}-${dd}`;
-}
-function fmt(dt){
-  if(!dt) return '-';
-  const d = new Date(dt);
-  if (isNaN(d)) return String(dt||'-');
-  return d.toLocaleString();
-}
-function diffHuman(start,end){
-  if(!start) return '-';
-  const s = new Date(start).getTime();
-  const e = end ? new Date(end).getTime() : Date.now();
-  if(isNaN(s)||isNaN(e)) return '-';
-  let mins = Math.max(0, Math.round((e-s)/60000));
-  const h = Math.floor(mins/60); mins = mins%60;
-  return (h?`${h} ชม `:'') + `${mins} นาที`;
-}
+/* utils (อย่ามีซ้ำที่อื่น) */
+function ymd(d){ const dt = d instanceof Date ? d : new Date(d); const mm = String(dt.getMonth()+1).padStart(2,'0'); const dd = String(dt.getDate()).padStart(2,'0'); return `${dt.getFullYear()}-${mm}-${dd}`; }
+function fmt(dt){ if(!dt) return '-'; const d = new Date(dt); return isNaN(d) ? String(dt||'-') : d.toLocaleString(); }
+function diffHuman(start,end){ if(!start) return '-'; const s = +new Date(start); const e = end ? +new Date(end) : Date.now(); if(isNaN(s)||isNaN(e)) return '-'; let mins = Math.max(0, Math.round((e-s)/60000)); const h = Math.floor(mins/60); mins%=60; return (h?`${h} ชม `:'')+`${mins} นาที`; }
 
-/* ===== styles เสริมให้ตาราง ===== */
+/* inject styles (เผื่อไม่ได้ใส่ไว้ใน <style>) */
 function ensureManageStyles(){
   if (document.getElementById('mgTableStyles')) return;
-  const css = `
-    #mgTableFrame{max-height:65dvh;overflow:auto;border:1px solid #e5e7eb;border-radius:.75rem;background:#fff;}
-    #mgTable{border-collapse:separate;table-layout:auto;min-width:1380px;}
+  const s = document.createElement('style');
+  s.id = 'mgTableStyles';
+  s.textContent = `
+    /* กรอบเลื่อนเฉพาะตาราง */
+    #mgTableFrame{max-height:65dvh;overflow:auto;border:1px solid #e5e7eb;border-radius:.75rem;background:#fff;-webkit-overflow-scrolling:touch;}
+    /* ตัวตาราง */
+    #mgTable{border-collapse:separate;table-layout:auto;min-width:1380px;width:100%;}
+    /* head sticky */
     #mgTable thead th{position:sticky;top:0;z-index:1;background:#fff;}
+    /* nowrap ส่วนใหญ่ ยกเว้นคอลัมน์งาน */
     .table-nowrap th,.table-nowrap td{white-space:nowrap;}
     td.col-task{white-space:normal;word-break:break-word;}
   `;
-  const s = document.createElement('style');
-  s.id = 'mgTableStyles';
-  s.textContent = css;
   document.head.appendChild(s);
 }
 
-/* ====== กำหนดความกว้างคอลัมน์ ====== */
-const MG_COL_WIDTHS = [
-  170, // วันที่สร้าง
-  200, // ชื่อ-นามสกุล
-  220, // บริษัท/หน่วยงาน
-  280, // งาน/ภารกิจ (อนุญาตพับบรรทัด)
-  140, // ห้อง
-  120, // สถานะ
-  240, // ผู้เช็คอิน + เวลา
-  240, // ผู้เช็คเอาต์ + เวลา
-  130  // ระยะเวลา
-];
-
+/* ทำให้แน่ใจว่ากรอบ/ตารางพร้อมใช้งาน */
 function ensureManageTableFrame(){
   const frame = document.getElementById('mgTableFrame');
   const table = document.getElementById('mgTable');
   if (!frame || !table) return null;
-
-  // รับประกันว่าตารางกว้างพอสำหรับสโครลแนวนอน
   table.style.minWidth = '1380px';
   table.style.width = '100%';
   table.style.tableLayout = 'auto';
   return { frame, table };
 }
 
-/* ====== API ====== */
+/* API */
 async function fetchAdminSummary(params){
   const res = await apiPost('work_admin_summary', params);
   if(!res?.ok) throw new Error(res?.message || 'โหลดสรุปล้มเหลว');
@@ -1543,7 +1515,7 @@ async function fetchAdminList(params){
   return res.rows || [];
 }
 
-// ===== helpers สำหรับตาราง =====
+/* สร้างเซลล์แบบปลอดภัย */
 function tdText(txt, cls = '', title) {
   const td = document.createElement('td');
   td.className = `py-2 px-3 ${cls}`.trim();
@@ -1552,7 +1524,6 @@ function tdText(txt, cls = '', title) {
   return td;
 }
 function tdTask(txt) {
-  // อนุญาตพับบรรทัด
   const td = document.createElement('td');
   td.className = 'py-2 px-3 col-task';
   td.textContent = (txt ?? '-') + '';
@@ -1563,13 +1534,9 @@ function tdStatus(status, isActive) {
   td.className = 'py-2 px-3 whitespace-nowrap';
   const span = document.createElement('span');
   span.className = 'px-2 py-0.5 pill text-xs ' + (
-    status === 'done'
-      ? 'bg-indigo-100 text-indigo-700'
-      : isActive
-        ? 'bg-emerald-100 text-emerald-700'
-        : status === 'pending'
-          ? 'bg-amber-100 text-amber-700'
-          : 'bg-gray-100 text-gray-700'
+    status === 'done' ? 'bg-indigo-100 text-indigo-700' :
+    isActive        ? 'bg-emerald-100 text-emerald-700' :
+    status==='pending' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-700'
   );
   span.textContent = status || '-';
   td.appendChild(span);
@@ -1578,17 +1545,13 @@ function tdStatus(status, isActive) {
 function tdUserTime(name, time) {
   const td = document.createElement('td');
   td.className = 'py-2 px-3 whitespace-nowrap';
-  const line1 = document.createElement('div');
-  line1.textContent = name || '-';
-  const line2 = document.createElement('div');
-  line2.className = 'text-xs text-gray-500';
-  line2.textContent = fmt(time);
-  td.appendChild(line1);
-  td.appendChild(line2);
+  const line1 = document.createElement('div'); line1.textContent = name || '-';
+  const line2 = document.createElement('div'); line2.className = 'text-xs text-gray-500'; line2.textContent = fmt(time);
+  td.appendChild(line1); td.appendChild(line2);
   return td;
 }
 
-// ===== render (เฉพาะส่วนวาดตาราง) =====
+/* render */
 async function loadManage(){
   const from   = document.getElementById('mgFrom')?.value || ymd(new Date());
   const to     = document.getElementById('mgTo')?.value   || ymd(new Date());
@@ -1596,11 +1559,12 @@ async function loadManage(){
   const role   = document.getElementById('mgRole')?.value   || 'external';
   const q      = document.getElementById('mgQuery')?.value?.trim() || '';
 
+  ensureManageStyles();
   ensureManageTableFrame();
 
   const [summary, rows] = await Promise.all([
     fetchAdminSummary({ from, to, status, role, q }),
-    fetchAdminList({ from, to, status, role, q })
+    fetchAdminList   ({ from, to, status, role, q })
   ]);
 
   document.getElementById('sumTotal').textContent   = summary.total ?? rows.length;
@@ -1613,11 +1577,8 @@ async function loadManage(){
   if (!rows.length){
     const tr = document.createElement('tr');
     const td = document.createElement('td');
-    td.colSpan = 9;
-    td.className = 'py-3 px-3 text-gray-400';
-    td.textContent = 'ไม่พบข้อมูลตามเงื่อนไข';
-    tr.appendChild(td);
-    tb.appendChild(tr);
+    td.colSpan = 9; td.className = 'py-3 px-3 text-gray-400'; td.textContent = 'ไม่พบข้อมูลตามเงื่อนไข';
+    tr.appendChild(td); tb.appendChild(tr);
     return;
   }
 
@@ -1642,11 +1603,13 @@ async function loadManage(){
   tb.appendChild(frag);
 }
 
-
-/* ====== boot ====== */
+/* boot ครั้งเดียวเมื่อเข้ามาแท็บ */
 function bootManageTabOnce(){
   if (__manageBooted) return;
   __manageBooted = true;
+
+  ensureManageStyles();
+  ensureManageTableFrame();
 
   const today = ymd(new Date());
   const mgFrom = document.getElementById('mgFrom');
@@ -1654,33 +1617,28 @@ function bootManageTabOnce(){
   if (mgFrom) mgFrom.value = today;
   if (mgTo)   mgTo.value   = today;
 
-  ensureManageTableFrame();
-
   ['mgFrom','mgTo','mgStatus','mgRole'].forEach(id=>{
     document.getElementById(id)?.addEventListener('change', ()=> {
       loadManage().catch(err=>Toast.show(err.message,'error'));
     });
   });
-
   let qTimer = null;
   document.getElementById('mgQuery')?.addEventListener('input', ()=>{
     clearTimeout(qTimer);
     qTimer = setTimeout(()=> loadManage().catch(err=>Toast.show(err.message,'error')), 300);
   });
-
-  document.getElementById('mgRefresh')?.addEventListener('click', ()=>{
+  document.getElementById('mgRefresh')?.addEventListener('click', ()=> {
     loadManage().catch(err=>Toast.show(err.message,'error'));
   });
 
   loadManage().catch(err=>Toast.show(err.message,'error'));
 }
 
-// โหลดเมื่อสลับมาที่แท็บ manage
+/* hook จาก setActiveTab */
 document.addEventListener('tabchange', (e)=>{
   if (e?.detail?.tab === 'manage') bootManageTabOnce();
 });
-
-
 </script>
+
 </body>
 </html>
