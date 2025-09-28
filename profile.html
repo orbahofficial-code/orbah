@@ -16,7 +16,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <script>document.documentElement.classList.add('app-loading');</script>
 
-<style>
+  <style>
     /* ให้หน้าเลื่อนปกติ และรองรับ iOS momentum scroll */
     html, body{
       height: 100%;
@@ -26,9 +26,7 @@
     }
 
     /* เมื่อมีโมดัลเปิด: ล็อกพื้นหลังไม่ให้เลื่อน */
-    body.modal-open{
-      overflow: hidden;
-    }
+    body.modal-open{ overflow: hidden; }
 
     /* ===== Modal fixes ===== */
     .modal{
@@ -69,24 +67,62 @@
       opacity: 0;
       pointer-events: none;
     }
-
-    /* โครงกระดูก (skeleton) */
     #page-skeleton { display: none; }
-    html.app-loading #page-skeleton { 
-      display: block; 
-    }
+    html.app-loading #page-skeleton { display: block; }
 
-    /* โมดัลยังใช้ได้ตามเดิม (ถ้ามี) */
-    body.modal-open { overflow: hidden; }
-
-    /* เพิ่มความลื่นบนมือถือ */
+    /* เพิ่มความลื่นบนมือถือ (ย้ำ) */
     html, body {
       -webkit-overflow-scrolling: touch;
       touch-action: pan-y;
     }
 
-  </style>
+    /* ===============================
+       แยกสโครลเฉพาะ "ตารางจัดการ"
+       =============================== */
+    [data-pane="manage"] .manage-table-wrap{
+      /* ให้กล่องตารางมีสโครลของตัวเอง */
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;         /* กันการเด้งทะลุไปสโครลด้านหลัง */
+      border: 1px solid #e5e7eb;
+      border-radius: 0.75rem;               /* rounded-xl */
+      background: #fff;
+      /* ค่าเบื้องต้นในกรณีที่สคริปต์ยังไม่คำนวณ */
+      max-height: clamp(320px, 55vh, 720px);
+    }
 
+    /* ตัวตาราง */
+    #mgTable{
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    .table-nowrap { white-space: nowrap; }
+
+    /* ทำหัวตาราง sticky */
+    #mgTable thead th{
+      position: sticky;
+      top: 0;
+      background: #ffffff;
+      z-index: 1;
+      box-shadow: 0 1px 0 0 rgba(0,0,0,.06); /* เส้นขอบล่างบางๆ */
+    }
+
+    /* แถว/คอลัมน์ */
+    #mgTable th, #mgTable td{
+      padding: 0.75rem 1rem; /* .py-3 .px-4 */
+      border-bottom: 1px solid #e5e7eb;
+      vertical-align: top;
+    }
+    #mgTable tbody tr:hover{
+      background: #f9fafb;
+    }
+
+    /* กรอบด้านใน (ช่วยให้สโครลลื่นตา) */
+    #mgTableFrame{
+      min-width: 960px; /* มีแนวนอนยืดได้ แต่กันคอลัมน์เบียด */
+    }
+  </style>
 </head>
 <body class="min-h-screen">
 
@@ -349,16 +385,16 @@
             <div id="mgTableFrame">
               <table id="mgTable" class="min-w-full text-sm table-nowrap">
                 <thead>
-                  <tr class="text-left text-gray-500 border-b">
-                    <th class="py-2 pr-4">เริ่ม (created)</th>
-                    <th class="py-2 pr-4">ชื่อ</th>
-                    <th class="py-2 pr-4">หน่วยงาน</th>
-                    <th class="py-2 pr-4">งาน</th>
-                    <th class="py-2 pr-4">ห้อง</th>
-                    <th class="py-2 pr-4">สถานะ</th>
-                    <th class="py-2 pr-4">เช็คอินโดย/เวลา</th>
-                    <th class="py-2 pr-4">เช็คเอาต์โดย/เวลา</th>
-                    <th class="py-2">ระยะเวลา</th>
+                  <tr class="text-left text-gray-500">
+                    <th>เริ่ม (created)</th>
+                    <th>ชื่อ</th>
+                    <th>หน่วยงาน</th>
+                    <th>งาน</th>
+                    <th>ห้อง</th>
+                    <th>สถานะ</th>
+                    <th>เช็คอินโดย/เวลา</th>
+                    <th>เช็คเอาต์โดย/เวลา</th>
+                    <th>ระยะเวลา</th>
                   </tr>
                 </thead>
                 <tbody id="mgTbody" class="text-gray-800">
@@ -369,32 +405,32 @@
           </div>
         </div>
 
-      <!-- Scan (OR staff only) -->
-      <div class="card bg-white p-6" data-pane="scan" style="display:none;">
-        <div class="flex items-center justify-between">
-          <h3 class="text-base font-semibold text-gray-800">สแกน QR Code</h3>
-          <button id="btnOpenCamera" class="px-3 py-2 pill bg-emerald-600 text-white hover:bg-emerald-700">
-            <i class="fa-solid fa-camera mr-1"></i> สแกน QR Code
-          </button>
-        </div>
-        <div id="scannerWrap" class="hidden mt-4">
-          <div class="relative rounded-xl border overflow-hidden bg-black">
-            <video id="scanVideo" class="w-full h-64 object-cover" autoplay playsinline muted></video>
-            <div class="absolute inset-0 pointer-events-none ring-2 ring-white/80 rounded-lg m-8"></div>
-            <div id="scanBusy" class="absolute inset-0 bg-black/40 text-white hidden items-center justify-center">
-              <div class="flex items-center gap-2 text-sm">
-                <i class="fa-solid fa-spinner fa-spin"></i>
-                <span class="msg">กำลังอ่านข้อมูล...</span>
+        <!-- Scan (OR staff only) -->
+        <div class="card bg-white p-6" data-pane="scan" style="display:none;">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-semibold text-gray-800">สแกน QR Code</h3>
+            <button id="btnOpenCamera" class="px-3 py-2 pill bg-emerald-600 text-white hover:bg-emerald-700">
+              <i class="fa-solid fa-camera mr-1"></i> สแกน QR Code
+            </button>
+          </div>
+          <div id="scannerWrap" class="hidden mt-4">
+            <div class="relative rounded-xl border overflow-hidden bg-black">
+              <video id="scanVideo" class="w-full h-64 object-cover" autoplay playsinline muted></video>
+              <div class="absolute inset-0 pointer-events-none ring-2 ring-white/80 rounded-lg m-8"></div>
+              <div id="scanBusy" class="absolute inset-0 bg-black/40 text-white hidden items-center justify-center">
+                <div class="flex items-center gap-2 text-sm">
+                  <i class="fa-solid fa-spinner fa-spin"></i>
+                  <span class="msg">กำลังอ่านข้อมูล...</span>
+                </div>
               </div>
             </div>
+            <div class="flex items-center gap-2 pt-3">
+              <button id="btnStopCamera" class="px-3 py-2 pill border hover:bg-gray-50">หยุดกล้อง</button>
+              <span id="scanStatus" class="text-xs text-gray-500">กด “สแกน QR Code” เพื่อเริ่ม</span>
+            </div>
+            <canvas id="scanCanvas" width="640" height="480" class="hidden"></canvas>
           </div>
-          <div class="flex items-center gap-2 pt-3">
-            <button id="btnStopCamera" class="px-3 py-2 pill border hover:bg-gray-50">หยุดกล้อง</button>
-            <span id="scanStatus" class="text-xs text-gray-500">กด “สแกน QR Code” เพื่อเริ่ม</span>
-          </div>
-          <canvas id="scanCanvas" width="640" height="480" class="hidden"></canvas>
         </div>
-      </div>
 
         <!-- Activity placeholder -->
         <div class="card bg-white p-6" data-pane="activity" style="display:none;">
@@ -1378,6 +1414,28 @@ function setActiveTab(tab){
   document.addEventListener('tabchange', (e)=>{
     if (e?.detail?.tab === 'manage') bootManageTabOnce();
   });
+
+      (function(){
+      function resizeManageBox(){
+        const pane = document.querySelector('[data-pane="manage"]');
+        if(!pane) return;
+        const wrap = pane.querySelector('.manage-table-wrap');
+        if(!wrap) return;
+        // ระยะห่างด้านล่างเล็กน้อย
+        const bottomPadding = 16; 
+        const top = wrap.getBoundingClientRect().top;
+        const vh = window.innerHeight || document.documentElement.clientHeight;
+        const maxH = Math.max(280, Math.floor(vh - top - bottomPadding));
+        wrap.style.maxHeight = maxH + 'px';
+      }
+      // เรียกเมื่อโหลด/รีไซส์/หมุนจอ/เปลี่ยนแท็บ
+      window.addEventListener('resize', resizeManageBox, {passive:true});
+      window.addEventListener('orientationchange', resizeManageBox);
+      document.addEventListener('DOMContentLoaded', resizeManageBox);
+      // เผื่อ layout shift จากฟอนต์/รูป
+      setTimeout(resizeManageBox, 0);
+      setTimeout(resizeManageBox, 200);
+    })();
 </script>
 
 </body>
