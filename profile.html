@@ -101,40 +101,35 @@
       margin: auto;                     /* จัดกลางเสมอ */
     }
 
-
-    /* กรอบสโครลเฉพาะตาราง */
+    /* กรอบเลื่อนเฉพาะตาราง */
     #mgTableFrame{
-      max-height: 65dvh;               /* สูงสุด ~65% หน้าจอมือถือ */
-      overflow: auto;                  /* เลื่อนทั้งแนวตั้ง/นอน */
-      border: 1px solid #e5e7eb;       /* เท่ากับ border-gray-200 */
-      border-radius: 0.75rem;          /* rounded-lg */
+      max-height: 65dvh;          /* ปรับได้ 60–75dvh ตามชอบ */
+      overflow: auto;              /* เลื่อนแนวตั้ง/แนวนอนได้ในกรอบนี้ */
+      border: 1px solid #e5e7eb;   /* border-gray-200 */
+      border-radius: 0.75rem;      /* rounded-lg */
+      background: #fff;
     }
     
-    /* หัวตารางติดบนขณะเลื่อน */
+    /* ป้องกันการสืบทอด overflow ที่ทำให้ sticky เพี้ยน */
+    #mgTable{
+      border-collapse: separate;
+      table-layout: auto;
+      min-width: 1380px;           /* ถ้าข้อมูลยาวจะมีสโครลแนวนอน */
+    }
+    
+    /* หัวตารางติดบนเวลาเลื่อน */
     #mgTable thead th{
       position: sticky;
       top: 0;
       z-index: 1;
-      background: #fff;                /* กันโปร่ง */
+      background: #fff;
     }
     
-    /* ไม่ตัดคำในคอลัมน์สำคัญ */
-    .table-nowrap th,
-    .table-nowrap td{
-      white-space: nowrap;
-    }
+    /* ไม่ตัดคำคอลัมน์ส่วนใหญ่ */
+    .table-nowrap th, .table-nowrap td{ white-space: nowrap; }
     
-    /* อนุญาตให้ตัดบรรทัดเฉพาะคอลัมน์ "งาน/ภารกิจ" */
-    td.col-task{
-      white-space: normal;
-      word-break: break-word;
-    }
-    
-    /* กันตัวตารางชิดเกินไปบนจอเล็ก */
-    #mgTable{
-      min-width: 1380px;               /* บังคับให้มีสโครลแนวนอนถ้าจอแคบ */
-      table-layout: auto;
-    }
+    /* ให้คอลัมน์ "งาน" พับบรรทัดได้ (กันยาวจนดันความกว้าง) */
+    td.col-task{ white-space: normal; word-break: break-word; }
 
 
   </style>
@@ -401,19 +396,17 @@
         <!-- Table -->
         <div id="mgTableFrame" class="overflow-auto rounded-lg">
           <table id="mgTable" class="min-w-full text-sm table-nowrap">
-            <!-- คุมความกว้างคอลัมน์ (อ่านง่ายขึ้น) -->
             <colgroup>
-              <col style="min-width:170px"><!-- เริ่ม -->
-              <col style="min-width:200px"><!-- ชื่อ -->
-              <col style="min-width:220px"><!-- หน่วยงาน -->
-              <col style="min-width:300px"><!-- งาน (ยอมตัดบรรทัด) -->
-              <col style="min-width:140px"><!-- ห้อง -->
-              <col style="min-width:120px"><!-- สถานะ -->
-              <col style="min-width:240px"><!-- เช็คอินโดย/เวลา -->
-              <col style="min-width:240px"><!-- เช็คเอาต์โดย/เวลา -->
-              <col style="min-width:130px"><!-- ระยะเวลา -->
+              <col style="min-width:170px">
+              <col style="min-width:200px">
+              <col style="min-width:220px">
+              <col style="min-width:300px">  <!-- งาน (ยอมตัดบรรทัด) -->
+              <col style="min-width:140px">
+              <col style="min-width:120px">
+              <col style="min-width:240px">
+              <col style="min-width:240px">
+              <col style="min-width:130px">
             </colgroup>
-        
             <thead>
               <tr class="text-left text-gray-500 border-b">
                 <th class="py-2 px-3">เริ่ม (created)</th>
@@ -427,12 +420,12 @@
                 <th class="py-2 px-3">ระยะเวลา</th>
               </tr>
             </thead>
-        
             <tbody id="mgTbody" class="text-gray-800">
               <tr><td class="py-3 px-3 text-gray-400" colspan="9">ไม่มีข้อมูล</td></tr>
             </tbody>
           </table>
         </div>
+
 
       <!-- Scan (OR staff only) -->
       <div class="card bg-white p-6" data-pane="scan" style="display:none;">
@@ -1479,7 +1472,7 @@ $('#btnStopCamera')?.addEventListener('click', ()=> stopScanner(true));
   }
 
   
- // ---- Admin Manage Tab ----
+// ---- Admin Manage Tab ----
 let __manageBooted = false;
 
 function ymd(d){
@@ -1504,12 +1497,28 @@ function diffHuman(start,end){
   return (h?`${h} ชม `:'') + `${mins} นาที`;
 }
 
-/* ====== NEW: สร้างกรอบสโครลเฉพาะตาราง + ใส่ colgroup กำหนดความกว้าง ====== */
+/* ===== styles เสริมให้ตาราง ===== */
+function ensureManageStyles(){
+  if (document.getElementById('mgTableStyles')) return;
+  const css = `
+    #mgTableFrame{max-height:65dvh;overflow:auto;border:1px solid #e5e7eb;border-radius:.75rem;background:#fff;}
+    #mgTable{border-collapse:separate;table-layout:auto;min-width:1380px;}
+    #mgTable thead th{position:sticky;top:0;z-index:1;background:#fff;}
+    .table-nowrap th,.table-nowrap td{white-space:nowrap;}
+    td.col-task{white-space:normal;word-break:break-word;}
+  `;
+  const s = document.createElement('style');
+  s.id = 'mgTableStyles';
+  s.textContent = css;
+  document.head.appendChild(s);
+}
+
+/* ====== กำหนดความกว้างคอลัมน์ ====== */
 const MG_COL_WIDTHS = [
   170, // วันที่สร้าง
   200, // ชื่อ-นามสกุล
   220, // บริษัท/หน่วยงาน
-  280, // งาน/ภารกิจ  (อนุญาตตัดบรรทัด)
+  280, // งาน/ภารกิจ (อนุญาตพับบรรทัด)
   140, // ห้อง
   120, // สถานะ
   240, // ผู้เช็คอิน + เวลา
@@ -1518,38 +1527,39 @@ const MG_COL_WIDTHS = [
 ];
 
 function ensureManageTableFrame(){
+  ensureManageStyles();
+
   const tb = document.getElementById('mgTbody');
   if(!tb) return null;
   const table = tb.closest('table');
   if(!table) return null;
 
-  // ห่อด้วยกรอบเลื่อน ถ้ายังไม่ได้ถูกห่อ
+  // ห่อด้วยกรอบสโครล ถ้ายังไม่มี
   let frame = document.getElementById('mgTableFrame');
   if(!frame){
     frame = document.createElement('div');
     frame.id = 'mgTableFrame';
-    frame.className = 'overflow-auto rounded-lg border';
-    frame.style.maxHeight = '65dvh';       // สูงสุด ~65% ของหน้าจอมือถือ
-    frame.style.contain = 'content';       // ลด reflow กระทบภายนอก
-    // ย้าย table เข้าไปใน frame (แทนที่ตำแหน่งเดิม)
+    frame.className = 'overflow-auto rounded-lg';
+    frame.style.contain = 'content';
+
     const parent = table.parentNode;
     parent.insertBefore(frame, table);
     frame.appendChild(table);
   }
 
-  // บังคับให้ตารางกว้างพอจะเลื่อนแนวนอน (ถ้าจอแคบ)
-  table.style.minWidth = MG_COL_WIDTHS.reduce((a,b)=>a+b, 0) + 64 + 'px'; // padding margin เผื่ออีกนิด
+  // ตั้งค่าตาราง
+  table.id = table.id || 'mgTable';
+  table.classList.add('table-nowrap');
+  table.style.minWidth = (MG_COL_WIDTHS.reduce((a,b)=>a+b,0) + 64) + 'px';
   table.style.width = '100%';
-  table.style.tableLayout = 'auto';
 
-  // สร้าง/อัปเดต colgroup กำหนดความกว้างคอลัมน์
+  // colgroup
   let colgroup = table.querySelector('colgroup#mgColgroup');
   if(!colgroup){
     colgroup = document.createElement('colgroup');
     colgroup.id = 'mgColgroup';
     table.insertBefore(colgroup, table.firstElementChild); // วางก่อน thead
   }
-  // เคลียร์แล้วสร้างใหม่ตามจำนวนคอลัมน์
   colgroup.innerHTML = '';
   MG_COL_WIDTHS.forEach(w=>{
     const col = document.createElement('col');
@@ -1566,38 +1576,33 @@ async function fetchAdminSummary(params){
   if(!res?.ok) throw new Error(res?.message || 'โหลดสรุปล้มเหลว');
   return res.summary || { total:0, pending:0, active:0, done:0 };
 }
-
 async function fetchAdminList(params){
   const res = await apiPost('work_admin_list', params);
   if(!res?.ok) throw new Error(res?.message || 'โหลดรายการล้มเหลว');
   return res.rows || [];
 }
 
+/* ====== render ====== */
 async function loadManage(){
-  // เก็บค่าฟิลเตอร์
-  const from = $('#mgFrom')?.value || ymd(new Date());
-  const to   = $('#mgTo')?.value   || ymd(new Date());
-  const status = $('#mgStatus')?.value || 'all';
-  const role   = $('#mgRole')?.value || 'external';
-  const q      = $('#mgQuery')?.value?.trim() || '';
+  const from   = document.getElementById('mgFrom')?.value || ymd(new Date());
+  const to     = document.getElementById('mgTo')?.value   || ymd(new Date());
+  const status = document.getElementById('mgStatus')?.value || 'all';
+  const role   = document.getElementById('mgRole')?.value   || 'external';
+  const q      = document.getElementById('mgQuery')?.value?.trim() || '';
 
-  // อัปเดตเลย์เอาต์ตารางให้เรียบร้อย (กรอบสโครล + colgroup)
   ensureManageTableFrame();
 
-  // เรียก API พร้อมกัน
   const [summary, rows] = await Promise.all([
     fetchAdminSummary({ from, to, status, role, q }),
     fetchAdminList({ from, to, status, role, q })
   ]);
 
-  // สรุป
-  $('#sumTotal').textContent   = summary.total ?? rows.length;
-  $('#sumPending').textContent = summary.pending ?? 0;
-  $('#sumActive').textContent  = summary.active ?? 0;
-  $('#sumDone').textContent    = summary.done ?? 0;
+  document.getElementById('sumTotal').textContent   = summary.total ?? rows.length;
+  document.getElementById('sumPending').textContent = summary.pending ?? 0;
+  document.getElementById('sumActive').textContent  = summary.active ?? 0;
+  document.getElementById('sumDone').textContent    = summary.done ?? 0;
 
-  // ตาราง
-  const tb = $('#mgTbody');
+  const tb = document.getElementById('mgTbody');
   tb.innerHTML = '';
   if (!rows.length){
     tb.innerHTML = `<tr><td class="py-3 px-3 text-gray-400" colspan="9">ไม่พบข้อมูลตามเงื่อนไข</td></tr>`;
@@ -1607,19 +1612,17 @@ async function loadManage(){
   const frag = document.createDocumentFragment();
   rows.forEach(r=>{
     const tr = document.createElement('tr');
-    tr.className = 'border-b align-top'; // align-top กันบรรทัดสูงไม่เขย่า
-
+    tr.className = 'border-b align-top';
     const isActive = (r.status==='checked' && !r.checkout_time);
 
-    // helper สร้างเซลล์แบบ no-wrap + มี title ให้อ่านเต็มเมื่อ hover
     const tdNowrap = (html, title) =>
-      `<td class="py-2 pr-4 whitespace-nowrap" title="${(title ?? html).toString().replace(/"/g,'&quot;')}">${html}</td>`;
+      `<td class="py-2 px-3 whitespace-nowrap" title="${(title ?? html).toString().replace(/"/g,'&quot;')}">${html}</td>`;
 
     tr.innerHTML = `
       ${tdNowrap(fmt(r.created_at), r.created_at)}
       ${tdNowrap(r.fullname||'-')}
       ${tdNowrap(r.company||r.workplace||'-')}
-      <td class="py-2 pr-4">${r.task ? String(r.task) : '-'}</td>  <!-- อนุญาตตัดบรรทัด -->
+      <td class="py-2 px-3 col-task">${r.task ? String(r.task) : '-'}</td>
       ${tdNowrap(r.room||'-')}
       ${tdNowrap(`
         <span class="px-2 py-0.5 pill text-xs ${r.status==='done'
@@ -1645,30 +1648,35 @@ async function loadManage(){
   tb.appendChild(frag);
 }
 
+/* ====== boot ====== */
 function bootManageTabOnce(){
   if (__manageBooted) return;
   __manageBooted = true;
 
-  // ค่าเริ่มต้นเป็นวันนี้
   const today = ymd(new Date());
-  if($('#mgFrom')) $('#mgFrom').value = today;
-  if($('#mgTo'))   $('#mgTo').value   = today;
+  const mgFrom = document.getElementById('mgFrom');
+  const mgTo   = document.getElementById('mgTo');
+  if (mgFrom) mgFrom.value = today;
+  if (mgTo)   mgTo.value   = today;
 
-  // ทำโครงตารางให้พร้อมสโครลตั้งแต่แรก
   ensureManageTableFrame();
 
-  // listener ฟิลเตอร์
   ['mgFrom','mgTo','mgStatus','mgRole'].forEach(id=>{
-    $('#'+id)?.addEventListener('change', ()=> loadManage().catch(err=>Toast.show(err.message,'error')));
+    document.getElementById(id)?.addEventListener('change', ()=> {
+      loadManage().catch(err=>Toast.show(err.message,'error'));
+    });
   });
+
   let qTimer = null;
-  $('#mgQuery')?.addEventListener('input', ()=>{
+  document.getElementById('mgQuery')?.addEventListener('input', ()=>{
     clearTimeout(qTimer);
     qTimer = setTimeout(()=> loadManage().catch(err=>Toast.show(err.message,'error')), 300);
   });
-  $('#mgRefresh')?.addEventListener('click', ()=> loadManage().catch(err=>Toast.show(err.message,'error')));
 
-  // โหลดรอบแรก
+  document.getElementById('mgRefresh')?.addEventListener('click', ()=>{
+    loadManage().catch(err=>Toast.show(err.message,'error'));
+  });
+
   loadManage().catch(err=>Toast.show(err.message,'error'));
 }
 
@@ -1676,6 +1684,7 @@ function bootManageTabOnce(){
 document.addEventListener('tabchange', (e)=>{
   if (e?.detail?.tab === 'manage') bootManageTabOnce();
 });
+
 
 </script>
 </body>
