@@ -83,21 +83,57 @@
   }
 
   /* ===== Manage table (เฉพาะแท็บจัดการ) ===== */
-  /* ให้การ์ด manage เป็นคอลัมน์ที่ยอมยุบสูง (ไม่ดันหน้า) */
-  [data-pane="manage"].card{ display:flex; flex-direction:column; min-height:0 }
-
-  /* กรอบเลื่อนเฉพาะตาราง */
-  #mgTableFrame{
-    max-height:min(65dvh,65vh);
-    overflow:auto; -webkit-overflow-scrolling:touch;
-    border:1px solid #e5e7eb; border-radius:.75rem; background:#fff;
+  /* ให้การ์ดของแท็บ manage เป็นคอลัมน์และยอมยุบความสูงได้ */
+  [data-pane="manage"].card{
+    display:flex;
+    flex-direction:column;
+    min-height:0;                 /* สำคัญ: ลูกจะไม่ดันสูงเกิน */
   }
+  
+  /* โครงห่อกรอบตาราง – กินพื้นที่ที่เหลือในการ์ด */
+  .manage-table-wrap{
+    flex:1 1 auto;
+    min-height:0;                 /* สำคัญ */
+    display:flex;
+    flex-direction:column;
+  }
+  
+  /* กรอบสโครลเฉพาะตาราง */
+  #mgTableFrame{
+    flex:1 1 auto;
+    min-height:0;
+    height:100%;
+    max-height:none;              /* ใช้ความสูงจาก .manage-table-wrap */
+    overflow:auto;
+    -webkit-overflow-scrolling:touch;
+    border:1px solid #e5e7eb;     /* gray-200 */
+    border-radius:.75rem;         /* rounded-lg */
+    background:#fff;
+  }
+  
+  /* บนจอเล็ก ถ้าตารางสูงไปให้กำหนดเพดาน */
+  @media (max-width: 1024px){
+    #mgTableFrame{ height:60vh; max-height:60vh; }
+  }
+  
+  /* ตาราง + หัวตาราง sticky + ความกว้างคอลัมน์ */
+  #mgTable{
+    border-collapse:separate;
+    table-layout:auto;
+    min-width:1380px;             /* ให้มีสโครลแนวนอนได้ถ้าจอแคบ */
+    width:100%;
+  }
+  #mgTable thead th{
+    position:sticky;
+    top:0;
+    z-index:1;
+    background:#fff;
+  }
+  
+  /* ส่วนใหญ่ไม่ตัดคำ ยกเว้นคอลัมน์งานให้พับบรรทัดได้ */
+  .table-nowrap th, .table-nowrap td{ white-space:nowrap; }
+  td.col-task{ white-space:normal; word-break:break-word; }
 
-  /* เรียงคอลัมน์/หัวตาราง sticky */
-  #mgTable{ border-collapse:separate; table-layout:auto; min-width:1380px; width:100% }
-  #mgTable thead th{ position:sticky; top:0; z-index:1; background:#fff }
-  .table-nowrap th,.table-nowrap td{ white-space:nowrap }
-  td.col-task{ white-space:normal; word-break:break-word } /* คอลัมน์งานให้พับบรรทัด */
 </style>
 
 </head>
@@ -333,9 +369,7 @@
                 <option value="all">บุคลากร รพ.</option>
               </select>
               <input id="mgQuery" class="border rounded-lg px-3 py-1" placeholder="ค้นหา: ชื่อ/งาน/ห้อง/username">
-              <button id="mgRefresh" class="px-3 py-1 pill border hover:bg-gray-50">
-                รีเฟรช
-              </button>
+              <button id="mgRefresh" class="px-3 py-1 pill border hover:bg-gray-50">รีเฟรช</button>
             </div>
           </div>
         
@@ -359,39 +393,31 @@
             </div>
           </div>
         
-     
-        <!-- Table -->
-        <div id="mgTableFrame" class="overflow-auto rounded-lg">
-          <table id="mgTable" class="min-w-full text-sm table-nowrap">
-            <colgroup>
-              <col style="min-width:170px">
-              <col style="min-width:200px">
-              <col style="min-width:220px">
-              <col style="min-width:300px">  <!-- งาน (ยอมตัดบรรทัด) -->
-              <col style="min-width:140px">
-              <col style="min-width:120px">
-              <col style="min-width:240px">
-              <col style="min-width:240px">
-              <col style="min-width:130px">
-            </colgroup>
-            <thead>
-              <tr class="text-left text-gray-500 border-b">
-                <th class="py-2 px-3">เริ่ม (created)</th>
-                <th class="py-2 px-3">ชื่อ</th>
-                <th class="py-2 px-3">หน่วยงาน</th>
-                <th class="py-2 px-3">งาน</th>
-                <th class="py-2 px-3">ห้อง</th>
-                <th class="py-2 px-3">สถานะ</th>
-                <th class="py-2 px-3">เช็คอินโดย/เวลา</th>
-                <th class="py-2 px-3">เช็คเอาต์โดย/เวลา</th>
-                <th class="py-2 px-3">ระยะเวลา</th>
-              </tr>
-            </thead>
-            <tbody id="mgTbody" class="text-gray-800">
-              <tr><td class="py-3 px-3 text-gray-400" colspan="9">ไม่มีข้อมูล</td></tr>
-            </tbody>
-          </table>
+          <!-- Table area (scroll only inside this box) -->
+          <div class="manage-table-wrap">
+            <div id="mgTableFrame">
+              <table id="mgTable" class="min-w-full text-sm table-nowrap">
+                <thead>
+                  <tr class="text-left text-gray-500 border-b">
+                    <th class="py-2 pr-4">เริ่ม (created)</th>
+                    <th class="py-2 pr-4">ชื่อ</th>
+                    <th class="py-2 pr-4">หน่วยงาน</th>
+                    <th class="py-2 pr-4">งาน</th>
+                    <th class="py-2 pr-4">ห้อง</th>
+                    <th class="py-2 pr-4">สถานะ</th>
+                    <th class="py-2 pr-4">เช็คอินโดย/เวลา</th>
+                    <th class="py-2 pr-4">เช็คเอาต์โดย/เวลา</th>
+                    <th class="py-2">ระยะเวลา</th>
+                  </tr>
+                </thead>
+                <tbody id="mgTbody" class="text-gray-800">
+                  <tr><td class="py-3 text-gray-400" colspan="9">ไม่มีข้อมูล</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
+
 
 
       <!-- Scan (OR staff only) -->
@@ -1494,46 +1520,14 @@ const MG_COL_WIDTHS = [
 ];
 
 function ensureManageTableFrame(){
-  ensureManageStyles();
+  const frame = document.getElementById('mgTableFrame');
+  const table = document.getElementById('mgTable');
+  if (!frame || !table) return null;
 
-  const tb = document.getElementById('mgTbody');
-  if(!tb) return null;
-  const table = tb.closest('table');
-  if(!table) return null;
-
-  // ห่อด้วยกรอบสโครล ถ้ายังไม่มี
-  let frame = document.getElementById('mgTableFrame');
-  if(!frame){
-    frame = document.createElement('div');
-    frame.id = 'mgTableFrame';
-    frame.className = 'overflow-auto rounded-lg';
-    frame.style.contain = 'content';
-
-    const parent = table.parentNode;
-    parent.insertBefore(frame, table);
-    frame.appendChild(table);
-  }
-
-  // ตั้งค่าตาราง
-  table.id = table.id || 'mgTable';
-  table.classList.add('table-nowrap');
-  table.style.minWidth = (MG_COL_WIDTHS.reduce((a,b)=>a+b,0) + 64) + 'px';
+  // รับประกันว่าตารางกว้างพอสำหรับสโครลแนวนอน
+  table.style.minWidth = '1380px';
   table.style.width = '100%';
-
-  // colgroup
-  let colgroup = table.querySelector('colgroup#mgColgroup');
-  if(!colgroup){
-    colgroup = document.createElement('colgroup');
-    colgroup.id = 'mgColgroup';
-    table.insertBefore(colgroup, table.firstElementChild); // วางก่อน thead
-  }
-  colgroup.innerHTML = '';
-  MG_COL_WIDTHS.forEach(w=>{
-    const col = document.createElement('col');
-    col.style.minWidth = w + 'px';
-    colgroup.appendChild(col);
-  });
-
+  table.style.tableLayout = 'auto';
   return { frame, table };
 }
 
