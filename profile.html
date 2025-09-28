@@ -30,6 +30,43 @@
     .modal-card{ background: #fff; border-radius: 1rem; width: 100%; max-width: 560px; box-shadow: 0 30px 60px -25px rgba(0,0,0,.35); }
     .toast{ position:fixed; right:16px; top:16px; z-index:60; display:flex; flex-direction:column; gap:10px; }
     .toast-item{ background:#111827; color:#fff; padding:12px 14px; border-radius:12px; box-shadow:0 10px 20px -10px rgba(0,0,0,.3); min-width:260px; display:flex; gap:10px; }
+
+      /* --- Scroll fixes --- */
+      html, body {
+        height: 100%;
+        overflow-y: auto;             /* ให้หน้าเพจเลื่อนแนวตั้งได้เสมอ */
+        -webkit-overflow-scrolling: touch;  /* โมเมนตัมสกอร์ลบน iOS */
+        overscroll-behavior-y: contain;     /* กันดึงเด้งเกินหน้า */
+        touch-action: pan-y;                /* บอกชัดว่า gesture หลักคือเลื่อนแนวตั้ง */
+      }
+      
+      /* เมื่อเปิด modal เราจะล็อกพื้นหลัง (เลื่อนได้เฉพาะในกล่อง modal) */
+      body.modal-open {
+        overflow: hidden;
+      }
+      
+      /* ตัว modal เองให้เลื่อนภายในได้ถ้าคอนเทนต์ยาว */
+      .modal {
+        overflow-y: auto;      /* เผื่อกล่อง modal-card ยาวกว่าจอ */
+      }
+      
+      /* กล่องเนื้อหาใน modal: จำกัดความสูงแล้วค่อยเลื่อนภายใน */
+      .modal-card {
+        max-height: 90vh;      /* ไม่เกินความสูงจอ */
+        overflow: auto;        /* เลื่อนภายในกล่อง */
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      /* iOS viewport height quirks */
+      @supports (-webkit-touch-callout: none) {
+        html, body {
+          height: -webkit-fill-available;
+        }
+        body {
+          min-height: -webkit-fill-available;
+        }
+      }
+
   </style>
 </head>
 <body class="min-h-screen">
@@ -427,8 +464,25 @@
     }
   };
 
-  function openModal(id){ const el = document.getElementById(id); if(el) el.classList.add("show"); }
-  function closeModal(id){ const el = document.getElementById(id); if(el) el.classList.remove("show"); }
+  function openModal(id){
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.classList.add('show');
+    // ล็อกพื้นหลังไม่ให้เลื่อน (เลื่อนเฉพาะใน modal)
+    document.body.classList.add('modal-open');
+  }
+  
+  function closeModal(id){
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.classList.remove('show');
+    // ถ้าไม่มี modal ไหนเปิดอยู่แล้ว ค่อยปลดล็อกสกอร์ลพื้นหลัง
+    const anyOpen = Array.from(document.querySelectorAll('.modal')).some(m => m.classList.contains('show'));
+    if(!anyOpen){
+      document.body.classList.remove('modal-open');
+    }
+  }
+
 
   // ปุ่ม [data-close] รวม
   document.addEventListener('click', (e)=>{
