@@ -70,92 +70,73 @@
   #page-skeleton { display: none; }
   html.app-loading #page-skeleton { display: block; }
 
-  /* ===============================
-     ป้องกันการ์ดอื่นถูกดันตอนเปิด "จัดการ"
-     =============================== */
-  /* ถ้ามีคลาส main-col ให้ใช้ (แนะนำ) */
-  .main-col{ min-width: 0; min-height: 0; }
-  /* เผื่อไม่ได้ใส่ main-col: จับ section หลักฝั่งขวาให้ยอมบีบตัว */
-  .max-w-7xl .grid > section.space-y-6{ min-width: 0; min-height: 0; }
+ /* คอลัมน์ขวาของกริดควรยอมบีบตัว */
+.main-col{ min-width:0; min-height:0; }
 
-  /* =========================================
-     แยกสโครลเฉพาะ "ตารางจัดการ (Manage)"
-     ========================================= */
-  .manage-card{
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;                 /* ทดแทน mb ระหว่างส่วนหัว/สรุป/ตาราง */
-    max-height: min(80vh, 80dvh);
-    overflow: hidden;          /* ซ่อนสโครลหลักของการ์ด */
-    min-width: 0;              /* กันดันคอลัมน์กริด */
-  }
+/* การ์ด Manage: ให้มีพื้นที่คงที่และแบ่งสโครลไปที่ตาราง */
+.manage-card{
+  display:flex; flex-direction:column; gap:1rem;
+  max-height:min(80vh,80dvh);
+  overflow:hidden; min-width:0;
+}
 
-  /* กล่องตาราง: ให้เลื่อนทั้งแนวตั้งและแนวนอน (มือถือได้จริง) */
-  .manage-table-wrap{
-    flex: 1;
-    min-height: 0;
-    max-width: 100%;                 /* ไม่ให้ดันออกนอกคอลัมน์ */
-    overflow-x: auto;                /* แนวนอน */
-    overflow-y: auto;                /* แนวตั้ง */
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-    touch-action: pan-x pan-y;       /* อนุญาตลากนิ้วทั้งสองแกน */
-    border: 1px solid #e5e7eb;
-    border-radius: 0.75rem;          /* rounded-xl */
-    background: #fff;
-    position: relative;
-  }
+/* แถบกรองให้สูงพอดี และไม่ดันความสูงรวม */
+.manage-controls{ display:flex; flex-wrap:wrap; gap:.5rem; }
 
-  /* โครงภายใน: กว้างเท่าคอนเทนต์จริง แต่ยังเคารพกรอบด้านนอก */
-  #mgTableFrame{
-    width: max-content;
-    min-width: 100%;
-  }
+/* สรุป 4 ช่องแนวนอน (responsive) */
+.manage-summary{
+  display:grid; gap:.75rem;           /* 12px */
+  grid-template-columns:repeat(4,minmax(0,1fr));
+}
+@media (max-width:1024px){
+  .manage-summary{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:640px){
+  .manage-summary{ grid-template-columns:1fr; }
+}
+.summary-card{
+  border-radius:.75rem; padding:1rem; /* p-4 */
+}
+@media (max-width:640px){
+  .summary-card{ padding:.75rem; }    /* p-3 บนมือถือ */
+}
 
-  /* ตาราง: ขยายตามจำนวนคอลัมน์เพื่อให้เกิดสโครลข้าง */
-  #mgTable{
-    width: max-content;              /* สำคัญ */
-    min-width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-  }
+/* กล่องตาราง:เป็นผู้สโครลหลัก */
+.manage-table-wrap{
+  flex:1; min-height:0; max-width:100%;
+  overflow-x:auto; overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain; touch-action:pan-x pan-y;
+  border:1px solid #e5e7eb; border-radius:.75rem; background:#fff;
+}
 
-  /* ไม่ตัดบรรทัด (ให้เกิดสโครลแนวนอน) */
-  .table-nowrap{ white-space: nowrap; }
+/* ตารางภายใน */
+#mgTableFrame{ width:max-content; min-width:100%; }
+#mgTable{ width:max-content; min-width:100%; border-collapse:separate; border-spacing:0; }
+.table-nowrap{ white-space:nowrap; }
 
-  /* header sticky ขณะเลื่อน */
-  #mgTable thead th{
-    position: sticky;
-    top: 0;
-    background: #ffffff;
-    z-index: 1;
-    box-shadow: 0 1px 0 0 rgba(0,0,0,.06);
-  }
+#mgTable thead th{
+  position:sticky; top:0; background:#fff; z-index:1;
+  box-shadow:0 1px 0 0 rgba(0,0,0,.06);
+}
+#mgTable th, #mgTable td{ padding:.75rem 1rem; border-bottom:1px solid #e5e7eb; vertical-align:top; }
+#mgTable tbody tr:hover{ background:#f9fafb; }
 
-  /* ช่องตาราง */
-  #mgTable th, #mgTable td{
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid #e5e7eb;
-    vertical-align: top;
-  }
-  #mgTable tbody tr:hover{ background:#f9fafb; }
+@media (max-width:640px){
+  #mgTable{ font-size:.875rem; }
+  #mgTable th, #mgTable td{ padding:.5rem .75rem; }
+  #mgTable th:nth-child(1), #mgTable td:nth-child(1){ min-width:120px; }
+  #mgTable th:nth-child(2), #mgTable td:nth-child(2){ min-width:140px; }
+  #mgTable th:nth-child(4), #mgTable td:nth-child(4){ min-width:160px; }
+  #mgTable th:nth-child(7), #mgTable td:nth-child(7),
+  #mgTable th:nth-child(8), #mgTable td:nth-child(8){ min-width:180px; }
+}
 
-  /* ===== ปรับให้เหมาะกับมือถือ: ลดพื้นที่ให้เลื่อนง่าย ===== */
-  @media (max-width: 640px){
-    #mgTable{ font-size: 0.875rem; }           /* text-sm */
-    #mgTable th, #mgTable td{ padding: 0.5rem 0.75rem; }
-    /* บังคับขั้นต่ำบางคอลัมน์เพื่อเลื่อนง่าย */
-    #mgTable th:nth-child(1), #mgTable td:nth-child(1){ min-width: 120px; } /* created */
-    #mgTable th:nth-child(2), #mgTable td:nth-child(2){ min-width: 140px; } /* ชื่อ */
-    #mgTable th:nth-child(4), #mgTable td:nth-child(4){ min-width: 160px; } /* งาน */
-    #mgTable th:nth-child(7), #mgTable td:nth-child(7),
-    #mgTable th:nth-child(8), #mgTable td:nth-child(8){ min-width: 180px; } /* เช็คอิน/เช็คเอาต์ */
-  }
+/* สกอร์ลบาร์แนวนอน (optional) */
+.manage-table-wrap::-webkit-scrollbar{ height:10px; }
+.manage-table-wrap::-webkit-scrollbar-thumb{ background:#c7cdd6; border-radius:9999px; }
+.manage-table-wrap::-webkit-scrollbar-track{ background:transparent; }
 
-  /* ===== สกอร์ลบาร์ (สวยงาม) ===== */
-  .manage-table-wrap::-webkit-scrollbar{ height: 10px; }
-  .manage-table-wrap::-webkit-scrollbar-thumb{ background: #c7cdd6; border-radius: 9999px; }
-  .manage-table-wrap::-webkit-scrollbar-track{ background: transparent; }
 </style>
 
 
@@ -376,11 +357,11 @@
 
         <!-- Manage (Admin dashboard) -->
         <div class="card bg-white p-6 manage-card" data-pane="manage" style="display:none;">
-          <div class="flex items-center justify-between">
+          <div class="flex items-start justify-between">
             <h3 class="text-base font-semibold text-gray-800">การปฏิบัติงาน (บุคคลภายนอก)</h3>
-            <div class="flex flex-wrap items-center gap-2 text-sm">
+            <div class="manage-controls text-sm">
               <input type="date" id="mgFrom" class="border rounded-lg px-2 py-1">
-              <input type="date" id="mgTo" class="border rounded-lg px-2 py-1">
+              <input type="date" id="mgTo"   class="border rounded-lg px-2 py-1">
               <select id="mgStatus" class="border rounded-lg px-2 py-1">
                 <option value="all">สถานะทั้งหมด</option>
                 <option value="pending">รอยืนยัน (pending)</option>
@@ -396,30 +377,30 @@
             </div>
           </div>
         
-          <!-- Summary -->
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div class="rounded-xl bg-gray-50 p-4">
+          <!-- Summary: 4 ช่องแนวนอน -->
+          <div class="manage-summary">
+            <div class="summary-card bg-gray-50">
               <div class="text-xs text-gray-500">ทั้งหมด</div>
               <div id="sumTotal" class="text-2xl font-semibold">0</div>
             </div>
-            <div class="rounded-xl bg-amber-50 p-4">
+            <div class="summary-card bg-amber-50">
               <div class="text-xs text-amber-700">รอยืนยัน</div>
               <div id="sumPending" class="text-2xl font-semibold text-amber-700">0</div>
             </div>
-            <div class="rounded-xl bg-emerald-50 p-4">
+            <div class="summary-card bg-emerald-50">
               <div class="text-xs text-emerald-700">เช็คอิน (Active)</div>
               <div id="sumActive" class="text-2xl font-semibold text-emerald-700">0</div>
             </div>
-            <div class="rounded-xl bg-indigo-50 p-4">
+            <div class="summary-card bg-indigo-50">
               <div class="text-xs text-indigo-700">เช็คเอาต์แล้ว</div>
               <div id="sumDone" class="text-2xl font-semibold text-indigo-700">0</div>
             </div>
           </div>
         
-          <!-- Table area (scroll only inside this box) -->
+          <!-- Table area: สโครลเฉพาะส่วนตาราง -->
           <div class="manage-table-wrap">
             <div id="mgTableFrame">
-              <table id="mgTable" class="min-w-full text-sm table-nowrap">
+              <table id="mgTable" class="text-sm table-nowrap">
                 <thead>
                   <tr class="text-left text-gray-500">
                     <th>เริ่ม (created)</th>
@@ -440,6 +421,7 @@
             </div>
           </div>
         </div>
+
 
 
         <!-- Scan (OR staff only) -->
