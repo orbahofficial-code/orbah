@@ -76,52 +76,42 @@
       touch-action: pan-y;
     }
 
-    /* ===============================
-       แยกสโครลเฉพาะ "ตารางจัดการ"
-       =============================== */
-    [data-pane="manage"] .manage-table-wrap{
-      /* ให้กล่องตารางมีสโครลของตัวเอง */
-      overflow: auto;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;         /* กันการเด้งทะลุไปสโครลด้านหลัง */
-      border: 1px solid #e5e7eb;
-      border-radius: 0.75rem;               /* rounded-xl */
-      background: #fff;
-      /* ค่าเบื้องต้นในกรณีที่สคริปต์ยังไม่คำนวณ */
-      max-height: clamp(320px, 55vh, 720px);
-    }
+  /* ให้การ์ด Manage มีความสูงจำกัด และแยกสโครลเฉพาะตารางด้านใน */
+  .manage-card{
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;                 /* ระยะห่างภายในแทน mb-4 เดิมด้านบน */
+    max-height: min(80vh, 80dvh);
+    overflow: hidden;          /* ซ่อนสโครลหลักของการ์ด */
+  }
+  
+  /* กล่องตาราง: สโครลเฉพาะส่วนนี้ */
+  .manage-table-wrap{
+    flex: 1;                   /* กินพื้นที่ที่เหลือในการ์ด */
+    min-height: 0;             /* ป้องกัน flex overflow */
+    overflow: auto;            /* สโครลแนวตั้ง/แนวนอนเฉพาะตาราง */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;    /* rounded-xl */
+    background: #fff;
+  }
+  
+  /* ทำหัวตาราง sticky ขณะเลื่อน */
+  #mgTable thead th{
+    position: sticky;
+    top: 0;
+    background: #ffffff;
+    z-index: 1;
+    box-shadow: 0 1px 0 0 rgba(0,0,0,.06);
+  }
+  
+  /* กันคอลัมน์เบียด และให้สโครลแนวนอนได้ถ้าจำเป็น */
+  #mgTableFrame{ min-width: 960px; }
+  .table-nowrap{ white-space: nowrap; }
+  #mgTable th, #mgTable td{ padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; }
+  #mgTable tbody tr:hover{ background:#f9fafb; }
 
-    /* ตัวตาราง */
-    #mgTable{
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-    }
-    .table-nowrap { white-space: nowrap; }
-
-    /* ทำหัวตาราง sticky */
-    #mgTable thead th{
-      position: sticky;
-      top: 0;
-      background: #ffffff;
-      z-index: 1;
-      box-shadow: 0 1px 0 0 rgba(0,0,0,.06); /* เส้นขอบล่างบางๆ */
-    }
-
-    /* แถว/คอลัมน์ */
-    #mgTable th, #mgTable td{
-      padding: 0.75rem 1rem; /* .py-3 .px-4 */
-      border-bottom: 1px solid #e5e7eb;
-      vertical-align: top;
-    }
-    #mgTable tbody tr:hover{
-      background: #f9fafb;
-    }
-
-    /* กรอบด้านใน (ช่วยให้สโครลลื่นตา) */
-    #mgTableFrame{
-      min-width: 960px; /* มีแนวนอนยืดได้ แต่กันคอลัมน์เบียด */
-    }
   </style>
 </head>
 <body class="min-h-screen">
@@ -339,8 +329,8 @@
         </div>
 
         <!-- Manage (Admin dashboard) -->
-        <div class="card bg-white p-6" data-pane="manage" style="display:none;">
-          <div class="flex items-center justify-between mb-4">
+        <div class="card bg-white p-6 manage-card" data-pane="manage" style="display:none;">
+          <div class="flex items-center justify-between">
             <h3 class="text-base font-semibold text-gray-800">การปฏิบัติงาน (บุคคลภายนอก)</h3>
             <div class="flex flex-wrap items-center gap-2 text-sm">
               <input type="date" id="mgFrom" class="border rounded-lg px-2 py-1">
@@ -361,7 +351,7 @@
           </div>
         
           <!-- Summary -->
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div class="rounded-xl bg-gray-50 p-4">
               <div class="text-xs text-gray-500">ทั้งหมด</div>
               <div id="sumTotal" class="text-2xl font-semibold">0</div>
@@ -404,6 +394,7 @@
             </div>
           </div>
         </div>
+
 
         <!-- Scan (OR staff only) -->
         <div class="card bg-white p-6" data-pane="scan" style="display:none;">
