@@ -14,6 +14,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
   <!-- Fallback QR decoder -->
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <script>document.documentElement.classList.add('app-loading');</script>
+
 
   <style>
     /* ให้หน้าเลื่อนปกติ และรองรับ iOS momentum scroll */
@@ -63,6 +65,26 @@
     .toast{ position:fixed; right:16px; top:16px; z-index:60; display:flex; flex-direction:column; gap:10px; }
     .toast-item{ background:#111827; color:#fff; padding:12px 14px; border-radius:12px; box-shadow:0 10px 20px -10px rgba(0,0,0,.3); min-width:260px; display:flex; gap:10px; }
     
+    /* ระหว่างโหลด: ซ่อน main จริง ปิดการคลิก และโชว์ skeleton */
+    html.app-loading main { 
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    /* โครงกระดูก (skeleton) */
+    #page-skeleton { display: none; }
+    html.app-loading #page-skeleton { 
+      display: block; 
+    }
+    
+    /* โมดัลยังใช้ได้ตามเดิม (ถ้ามี) */
+    body.modal-open { overflow: hidden; }
+    
+    /* เพิ่มความลื่นบนมือถือ */
+    html, body {
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+    }
 
   </style>
 </head>
@@ -430,6 +452,43 @@
     </div>
   </div>
 
+  <!-- Skeleton overlay: โชว์ตอน html.app-loading -->
+  <div id="page-skeleton" class="fixed inset-0 z-50 bg-white">
+    <div class="max-w-7xl mx-auto px-4 lg:px-6 py-6">
+      <div class="animate-pulse space-y-6">
+        <!-- แถบบน -->
+        <div class="h-12 bg-gray-200 rounded-xl"></div>
+        <!-- การ์ดหัวโปรไฟล์ -->
+        <div class="bg-white rounded-2xl shadow p-6">
+          <div class="flex items-center gap-4">
+            <div class="w-24 h-24 rounded-full bg-gray-200"></div>
+            <div class="flex-1 space-y-3">
+              <div class="h-5 bg-gray-200 rounded w-48"></div>
+              <div class="h-4 bg-gray-200 rounded w-64"></div>
+              <div class="h-3 bg-gray-200 rounded w-40"></div>
+            </div>
+          </div>
+        </div>
+        <!-- การ์ดอื่น ๆ แบบคร่าว ๆ -->
+        <div class="grid lg:grid-cols-[260px,1fr] gap-6">
+          <div class="bg-white rounded-2xl shadow p-4 h-64">
+            <div class="h-5 bg-gray-200 rounded w-24 mb-3"></div>
+            <div class="space-y-3">
+              <div class="h-9 bg-gray-200 rounded"></div>
+              <div class="h-9 bg-gray-200 rounded"></div>
+              <div class="h-9 bg-gray-200 rounded"></div>
+            </div>
+          </div>
+          <div class="space-y-6">
+            <div class="bg-white rounded-2xl shadow p-6 h-40"></div>
+            <div class="bg-white rounded-2xl shadow p-6 h-64"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  
   <!-- Toast -->
   <div class="toast" id="toast"></div>
 
@@ -562,53 +621,47 @@
 
   // ===== App =====
   document.addEventListener('DOMContentLoaded', async () => {
-    // Tabs: click
-    $$('.sidebar-item').forEach(a => {
-      a.addEventListener('click', e => {
-        e.preventDefault();
-        const tab = a.getAttribute('data-tab');
-        if (tab) setActiveTab(tab);
-      });
-    });
+  // ... โค้ดผูกแท็บ/ปุ่มต่าง ๆ ...
 
-    // Tabs: hash
-    window.addEventListener('hashchange', () => {
-      const tab = (location.hash || '#overview').slice(1);
-      setActiveTab(tab);
-    });
+  const auth = ensureAuth();
+  if (!auth) {
+    // กันค้างในหน้าเดิม กรณี redirect
+    document.documentElement.classList.remove('app-loading');
+    return;
+  }
 
-    // Logout
-    $('#btnLogout')?.addEventListener('click', () => {
-      ['auth_token','userRole','username','fullname','last_work_id'].forEach(k => localStorage.removeItem(k));
-      window.location.href = 'index.html';
-    });
+  try {
+    const res = await apiPost('get_profile', { username: auth.username });
+    if (!res?.ok || !res.data) throw new Error(res?.message || 'โหลดโปรไฟล์ไม่สำเร็จ');
 
-    const auth = ensureAuth();
-    if (!auth) return;
+    const profile = res.data;
+    bindData(profile);
+    window.currentProfile = profile;
 
-    try {
-      const res = await apiPost('get_profile', { username: auth.username });
-      const profile = res.data;
-      if (!res?.ok || !profile) throw new Error(res?.message || 'โหลดโปรไฟล์ไม่สำเร็จ');
+    if (profile.fullname) localStorage.setItem('fullname', profile.fullname);
+    if (profile.role)     localStorage.setItem('userRole', profile.role);
 
-      bindData(profile);
-      window.currentProfile = profile;
-
-      if (profile.fullname) localStorage.setItem('fullname', profile.fullname);
-      if (profile.role)     localStorage.setItem('userRole', profile.role);
-
-      if (typeof configureRoleUI === 'function') {
-        configureRoleUI(profile.role || localStorage.getItem('userRole') || 'external');
-      } else {
-        const firstTab = (location.hash || '#overview').slice(1);
-        setActiveTab(firstTab);
-      }
-    } catch (err) {
-      console.error(err);
-      Toast.show(err.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
-      setTimeout(() => (window.location.href = 'index.html'), 1200);
+    if (typeof configureRoleUI === 'function') {
+      configureRoleUI(profile.role || localStorage.getItem('userRole') || 'external');
+    } else {
+      const firstTab = (location.hash || '#overview').slice(1);
+      setActiveTab(firstTab);
     }
-  });
+
+    // ✅ ปิด skeleton/placeholder หลังโหลดเสร็จ
+    document.documentElement.classList.remove('app-loading');
+
+  } catch (err) {
+    console.error(err);
+    Toast.show(err.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้','error');
+
+    // ✅ ปิด skeleton กรณี error ด้วย
+    document.documentElement.classList.remove('app-loading');
+
+    setTimeout(() => (window.location.href = 'index.html'), 1200);
+  }
+});
+
 
   // อัปโหลดรูปโปรไฟล์
   $('#avatarInput')?.addEventListener('change', async (e)=>{
