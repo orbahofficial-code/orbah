@@ -201,7 +201,6 @@
         <div class="flex items-center gap-3 mb-4">
           <div class="w-14 h-14 rounded-full overflow-hidden avatar-ring">
             <img
-              data-bind="avatar"
               id="avatar"
               class="w-full h-full object-cover"
               alt="Profile"
@@ -238,7 +237,13 @@
           <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div class="flex items-center gap-4">
               <div class="w-24 h-24 rounded-full overflow-hidden avatar-ring">
-                <img data-bind="avatar" id="avatar" class="w-24 h-24 rounded-full object-cover border" alt="Profile">
+                <img
+                  id="avatar"
+                  class="w-full h-full object-cover"
+                  alt="Profile"
+                  loading="lazy"
+                  decoding="async"
+                  onerror="this.onerror=null;this.src='https://placehold.co/112x112/png?text=PROFILE';">
               </div>
               <div>
                 <div class="flex items-center gap-2">
@@ -644,6 +649,65 @@ const ROLE_TABS = {
   external: ["overview","profile","work"],
   "or-staff": ["overview","scan","activity"]
 };
+
+  // ===== Helpers =====
+const $  = (s)=>document.querySelector(s);
+
+function getDriveFileId(input=''){
+  // รองรับทั้ง.../file/d/<id>/view, ?id=<id>, และใส่เป็น id ตรง ๆ
+  if(!input) return '';
+  const m1 = input.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if(m1) return m1[1];
+  const m2 = input.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if(m2) return m2[1];
+  // ถ้าเป็น id เปล่า ๆ
+  if(/^[a-zA-Z0-9_-]{20,}$/.test(input)) return input;
+  return '';
+}
+
+function toImageSrc(urlOrId){
+  if(!urlOrId) return '';
+  // รองรับ base64 หรือ URL ปกติอยู่แล้ว
+  if(/^data:image\//.test(urlOrId) || /^blob:/.test(urlOrId)) return urlOrId;
+  if(/^https?:\/\//.test(urlOrId) && !/drive\.google\.com/.test(urlOrId)) return urlOrId;
+
+  // กรณี Google Drive -> แปลงเป็นรูปโดยตรง
+  const fid = getDriveFileId(urlOrId);
+  return fid ? `https://lh3.googleusercontent.com/d/${fid}=s256` : urlOrId;
+}
+
+// ===== Bind profile to UI =====
+function renderProfile(p){
+  // ข้อมูลตัวหนังสือ
+  const full = p.fullname || [p.first_name, p.last_name].filter(Boolean).join(' ') || '-';
+  const role = p.rolelabel || p.role || '';
+
+  const nameEl = document.querySelector('[data-bind="fullname"]');
+  const roleEl = document.querySelector('[data-bind="roleLabel"]');
+  if(nameEl) nameEl.textContent = full;
+  if(roleEl) roleEl.textContent = role;
+
+  // รูปโปรไฟล์
+  const avatarEl = $('#avatar');
+  const src =
+    toImageSrc(p.avatar_url || p.photo_url || p.avatar || p.photo || p.image);
+
+  if (avatarEl && src){
+    avatarEl.src = src;
+    avatarEl.alt = full || 'Profile';
+  }
+}
+
+// เรียกใช้เมื่อโหลดหน้า หรือหลังได้ข้อมูลโปรไฟล์จาก API
+document.addEventListener('DOMContentLoaded', ()=>{
+  if (window.currentProfile) {
+    renderProfile(window.currentProfile);
+  }
+});
+
+// ถ้าได้มาจาก async API:
+// get_profile().then(res => { window.currentProfile = res.data; renderProfile(res.data); });
+
 
 /* ========================== HELPERS ========================== */
 const $  = (sel, root=document) => root.querySelector(sel);
