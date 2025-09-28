@@ -73,68 +73,71 @@
  /* คอลัมน์ขวาของกริดควรยอมบีบตัว */
 .main-col{ min-width:0; min-height:0; }
 
-/* การ์ด Manage: ให้มีพื้นที่คงที่และแบ่งสโครลไปที่ตาราง */
+/* การ์ด Manage ให้ตารางกินพื้นที่ที่เหลือ */
 .manage-card{
-  display:flex; flex-direction:column; gap:1rem;
-  max-height:min(80vh,80dvh);
-  overflow:hidden; min-width:0;
+  display:flex; flex-direction:column; gap:.75rem;
+  max-height:min(80vh,80dvh); overflow:hidden; min-width:0;
 }
 
-/* แถบกรองให้สูงพอดี และไม่ดันความสูงรวม */
-.manage-controls{ display:flex; flex-wrap:wrap; gap:.5rem; }
-
-/* สรุป 4 ช่องแนวนอน (responsive) */
+/* --- SUMMARY: desktop = 4 ช่อง, mobile = แถวเดียวเลื่อนข้าง --- */
 .manage-summary{
-  display:grid; gap:.75rem;           /* 12px */
+  display:grid; gap:.5rem;
   grid-template-columns:repeat(4,minmax(0,1fr));
 }
 @media (max-width:1024px){
-  .manage-summary{ grid-template-columns:repeat(2,minmax(0,1fr)); }
-}
-@media (max-width:640px){
-  .manage-summary{ grid-template-columns:1fr; }
+  .manage-summary{
+    display:flex; flex-wrap:nowrap; gap:.5rem;
+    overflow-x:auto; -webkit-overflow-scrolling:touch;
+    padding-bottom:.25rem; scroll-snap-type:x mandatory;
+  }
 }
 .summary-card{
-  border-radius:.75rem; padding:1rem; /* p-4 */
+  border-radius:.75rem; background:#f9fafb;
+  padding:.6rem .75rem; display:flex; justify-content:space-between; align-items:center;
 }
-@media (max-width:640px){
-  .summary-card{ padding:.75rem; }    /* p-3 บนมือถือ */
-}
+.summary-title{ font-size:.72rem; line-height:1; opacity:.7; }
+.summary-value{ font-size:1.25rem; font-weight:700; line-height:1; }
 
-/* กล่องตาราง:เป็นผู้สโครลหลัก */
+/* สีเดิมของแต่ละกล่อง */
+.summary--total   { background:#f3f4f6; }                   /* gray-100 */
+.summary--pending { background:#fff7ed; color:#b45309; }    /* amber-50 */
+.summary--active  { background:#ecfdf5; color:#047857; }    /* emerald-50 */
+.summary--done    { background:#eef2ff; color:#4338ca; }    /* indigo-50 */
+
+/* กล่องตาราง: ผู้สโครลหลัก */
 .manage-table-wrap{
   flex:1; min-height:0; max-width:100%;
-  overflow-x:auto; overflow-y:auto;
-  -webkit-overflow-scrolling:touch;
-  overscroll-behavior:contain; touch-action:pan-x pan-y;
+  overflow:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
   border:1px solid #e5e7eb; border-radius:.75rem; background:#fff;
 }
 
-/* ตารางภายใน */
+/* ตารางภายใน: ให้เลื่อนข้างได้ */
 #mgTableFrame{ width:max-content; min-width:100%; }
 #mgTable{ width:max-content; min-width:100%; border-collapse:separate; border-spacing:0; }
 .table-nowrap{ white-space:nowrap; }
-
-#mgTable thead th{
-  position:sticky; top:0; background:#fff; z-index:1;
-  box-shadow:0 1px 0 0 rgba(0,0,0,.06);
-}
-#mgTable th, #mgTable td{ padding:.75rem 1rem; border-bottom:1px solid #e5e7eb; vertical-align:top; }
+#mgTable thead th{ position:sticky; top:0; background:#fff; z-index:1; box-shadow:0 1px 0 0 rgba(0,0,0,.06); }
+#mgTable th,#mgTable td{ padding:.6rem .9rem; border-bottom:1px solid #e5e7eb; vertical-align:top; }
 #mgTable tbody tr:hover{ background:#f9fafb; }
 
+/* มือถือ: ยิ่งกะทัดรัด */
 @media (max-width:640px){
+  .summary-card{ padding:.5rem .6rem; }
+  .summary-value{ font-size:1.1rem; }
   #mgTable{ font-size:.875rem; }
-  #mgTable th, #mgTable td{ padding:.5rem .75rem; }
-  #mgTable th:nth-child(1), #mgTable td:nth-child(1){ min-width:120px; }
-  #mgTable th:nth-child(2), #mgTable td:nth-child(2){ min-width:140px; }
-  #mgTable th:nth-child(4), #mgTable td:nth-child(4){ min-width:160px; }
-  #mgTable th:nth-child(7), #mgTable td:nth-child(7),
-  #mgTable th:nth-child(8), #mgTable td:nth-child(8){ min-width:180px; }
+  #mgTable th,#mgTable td{ padding:.45rem .6rem; }
+  #mgTable th:nth-child(1),#mgTable td:nth-child(1){ min-width:120px; }
+  #mgTable th:nth-child(2),#mgTable td:nth-child(2){ min-width:140px; }
+  #mgTable th:nth-child(4),#mgTable td:nth-child(4){ min-width:160px; }
+  #mgTable th:nth-child(7),#mgTable td:nth-child(7),
+  #mgTable th:nth-child(8),#mgTable td:nth-child(8){ min-width:180px; }
 }
 
-/* สกอร์ลบาร์แนวนอน (optional) */
+/* สกอร์ลบาร์สวย ๆ (optional) */
+.manage-summary::-webkit-scrollbar,
 .manage-table-wrap::-webkit-scrollbar{ height:10px; }
+.manage-summary::-webkit-scrollbar-thumb,
 .manage-table-wrap::-webkit-scrollbar-thumb{ background:#c7cdd6; border-radius:9999px; }
+.manage-summary::-webkit-scrollbar-track,
 .manage-table-wrap::-webkit-scrollbar-track{ background:transparent; }
 
 </style>
@@ -377,25 +380,26 @@
             </div>
           </div>
         
-          <!-- Summary: 4 ช่องแนวนอน -->
+          <!-- Summary: desktop = 4 คอลัมน์, mobile = ชิปเลื่อนข้าง -->
           <div class="manage-summary">
-            <div class="summary-card bg-gray-50">
-              <div class="text-xs text-gray-500">ทั้งหมด</div>
-              <div id="sumTotal" class="text-2xl font-semibold">0</div>
+            <div class="summary-card summary--total">
+              <span class="summary-title">ทั้งหมด</span>
+              <span id="sumTotal" class="summary-value">0</span>
             </div>
-            <div class="summary-card bg-amber-50">
-              <div class="text-xs text-amber-700">รอยืนยัน</div>
-              <div id="sumPending" class="text-2xl font-semibold text-amber-700">0</div>
+            <div class="summary-card summary--pending">
+              <span class="summary-title">รอยืนยัน</span>
+              <span id="sumPending" class="summary-value">0</span>
             </div>
-            <div class="summary-card bg-emerald-50">
-              <div class="text-xs text-emerald-700">เช็คอิน (Active)</div>
-              <div id="sumActive" class="text-2xl font-semibold text-emerald-700">0</div>
+            <div class="summary-card summary--active">
+              <span class="summary-title">เช็คอิน (Active)</span>
+              <span id="sumActive" class="summary-value">0</span>
             </div>
-            <div class="summary-card bg-indigo-50">
-              <div class="text-xs text-indigo-700">เช็คเอาต์แล้ว</div>
-              <div id="sumDone" class="text-2xl font-semibold text-indigo-700">0</div>
+            <div class="summary-card summary--done">
+              <span class="summary-title">เช็คเอาต์แล้ว</span>
+              <span id="sumDone" class="summary-value">0</span>
             </div>
           </div>
+
         
           <!-- Table area: สโครลเฉพาะส่วนตาราง -->
           <div class="manage-table-wrap">
