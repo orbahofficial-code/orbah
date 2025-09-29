@@ -257,7 +257,7 @@
   // ====== CONFIG: ใส่ URL GAS (ลงท้าย /exec)
   const API_BASE = "https://script.google.com/macros/s/AKfycbzK9QDRUSEq5U18Pwa40TWA-f4NrGx1CR2xqtnHBRgMQ3kSP1LfaJDMZPRc4evwuww-/exec";
 
-  // ====== WATERMARK TEXT (ปรับตรงนี้ได้หากอยากเปลี่ยนในอนาคต) ======
+  // ====== WATERMARK TEXT (แก้ตรงนี้ได้เมื่ออยากเปลี่ยน)
   const WM_TEXT = "ใช้สำหรับ รพ. เท่านั้น  กวห.รพ.ภูมิพลอดุลยเดช พอ.";
 
   const $  = (sel, root = document) => root.querySelector(sel);
@@ -324,7 +324,7 @@
     });
   }
 
-  // ===== Utilities: File -> base64 / dataURL =====
+  // ===== Utilities: File/DataURL helpers =====
   function fileToBase64(file){
     return new Promise((resolve, reject)=>{
       const fr = new FileReader();
@@ -345,15 +345,26 @@
       fr.readAsDataURL(file);
     });
   }
+  function dataURLToBase64Object(dataURL, filenameFallback='upload.jpg'){
+    try{
+      const m = String(dataURL).match(/^data:([^;]+);base64,(.+)$/);
+      if(!m) return { base64:'', mimeType:'image/jpeg', filename: filenameFallback };
+      const mimeType = m[1] || 'image/jpeg';
+      const base64 = m[2] || '';
+      return { base64, mimeType, filename: filenameFallback };
+    }catch(_){
+      return { base64:'', mimeType:'image/jpeg', filename: filenameFallback };
+    }
+  }
 
-  // ===== ทำลายน้ำสำหรับ "พรีวิว" (ไม่ไปแก้ไฟล์ต้นฉบับ) =====
+  // ===== ทำลายน้ำ (ใช้กับพรีวิวและอัปโหลดจริง) =====
   async function createWatermarkedPreview(file, {
     text = 'CONFIDENTIAL',
     subtext = '',
-    maxW = 1200,
+    maxW = 1200,           // ตั้งเป็น null เพื่อใช้ขนาดเดิม
     opacity = 0.18,
-    fontMain = 'bold 24px Sarabun, sans-serif',
-    fontSub = '16px Sarabun, sans-serif',
+    fontMain = 'bold 48px Sarabun, sans-serif',
+    fontSub = '24px Sarabun, sans-serif',
     color = '#000000',
     rotateDeg = -30,
     margin = 40,
@@ -366,8 +377,8 @@
     img.src = dataURL;
     await loaded;
 
-    // ย่อให้ไม่เกิน maxW
-    const scale = img.width > maxW ? (maxW / img.width) : 1;
+    // ถ้าไม่ระบุ maxW หรือรูปเล็กกว่าค่า maxW ให้ใช้ขนาดเดิม
+    const scale = (!maxW || img.width <= maxW) ? 1 : (maxW / img.width);
     const w = Math.round(img.width * scale);
     const h = Math.round(img.height * scale);
 
@@ -392,8 +403,7 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.font = fontMain;
-      // ห่อข้อความยาว (รองรับไทย) ให้พอดี
-      wrapFillText(ctx, text, 0, 0, 800, 56); // maxWidth=800, lineHeight=56
+      wrapFillText(ctx, text, 0, 0, 800, 56); // ห่อข้อความยาว
       if (subtext){
         ctx.font = fontSub;
         ctx.fillText(subtext, 0, 40);
@@ -404,9 +414,9 @@
     if (!repeat){
       drawOne(w/2, h/2);
     } else {
-      const step = 500; // ระยะห่างลายน้ำ
-      for (let y = 40; y < h + step; y += step){
-        for (let x = 40; x < w + step; x += step){
+      const step = 300; // ระยะห่างลายน้ำ
+      for (let y = margin; y < h + step; y += step){
+        for (let x = margin; x < w + step; x += step){
           drawOne(x, y);
         }
       }
@@ -418,7 +428,7 @@
 
   // ฟังก์ชันช่วยห่อข้อความภาษาไทยบนแคนวาส
   function wrapFillText(ctx, text, x, y, maxWidth, lineHeight){
-    const words = text.split(/\s+/);
+    const words = String(text).split(/\s+/);
     let line = '';
     const lines = [];
     for (let i = 0; i < words.length; i++){
@@ -569,8 +579,9 @@
         if(!file.type.startsWith('image/')){ Toast.show('ไฟล์ต้องเป็นรูปภาพเท่านั้น','error'); inputEl.value=''; return; }
 
         const wmDataURL = await createWatermarkedPreview(file, {
-          text: WM_TEXT,      // <<< ใช้ข้อความลายน้ำที่กำหนด
-          subtext: '',        // ไม่มีข้อความรอง
+          text: WM_TEXT,
+          subtext: '',
+          maxW: 1200,        // พรีวิวปรับขนาดพอเหมาะเพื่อโหลดเร็ว
           opacity: 0.18,
           rotateDeg: -30,
           repeat: true
@@ -586,7 +597,7 @@
     idInput && idPreview && idInput.addEventListener('change', ()=> handlePreview(idInput, idPreview, v=> idcardPreviewDataURL = v));
     faceInput && facePreview && faceInput.addEventListener('change', ()=> handlePreview(faceInput, facePreview, v=> portraitPreviewDataURL = v));
 
-    // --- ส่งลงทะเบียนภายนอก ---
+    // --- ส่งลงทะเบียนภายนอก (อัปโหลด "รูปเวอร์ชันลายน้ำ") ---
     $('#btnExternalSubmit')?.addEventListener('click', async (e)=>{
       e.preventDefault();
       const f = $('#externalForm');
@@ -605,9 +616,17 @@
       const btn = e.currentTarget;
       setLoading(btn, true, 'กำลังอัปโหลด...');
       try{
-        // อัปโหลด "ไฟล์จริง" ไปเซิร์ฟเวอร์ตามเดิม (พรีวิวมีลายน้ำเฉพาะหน้าบ้าน)
-        const idObj = await fileToBase64(idFile);
-        const faceObj = await fileToBase64(faceFile);
+        // 1) สร้างรูปเวอร์ชัน "มีลายน้ำ" ที่ความละเอียดเดิม (maxW:null)
+        const idWmDataURL   = await createWatermarkedPreview(idFile,   { text: WM_TEXT, subtext:'', maxW: null, opacity: 0.18, rotateDeg: -30, repeat: true });
+        const faceWmDataURL = await createWatermarkedPreview(faceFile, { text: WM_TEXT, subtext:'', maxW: null, opacity: 0.18, rotateDeg: -30, repeat: true });
+
+        // 2) แปลง dataURL -> object {base64,mimeType,filename}
+        const idName   = (idFile.name||'idcard.jpg').replace(/(\.[a-z0-9]+)$/i, '_wm$1');
+        const faceName = (faceFile.name||'portrait.jpg').replace(/(\.[a-z0-9]+)$/i, '_wm$1');
+        const idObj    = dataURLToBase64Object(idWmDataURL, idName);
+        const faceObj  = dataURLToBase64Object(faceWmDataURL, faceName);
+
+        // 3) ส่งขึ้น GAS เป็นเวอร์ชันที่ "ติดลายน้ำแล้ว"
         const payload = { ...form, idcard_img: idObj, portrait_img: faceObj };
 
         const res = await fetch(`${API_BASE}?route=register_external`, {
@@ -662,8 +681,5 @@
 
   });
 </script>
-
-
-
 </body>
 </html>
