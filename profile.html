@@ -1032,11 +1032,23 @@ async function fetchActiveWork(){
   const username = localStorage.getItem('username');
   if(!username) return null;
   try{
-    const res = await apiPost('work_get_active', { username });
-    if(res?.ok && res.work && res.work.work_id) return res;
+    // กัน cache เผื่อ proxy เก็บผลเก่า
+    const res = await apiPost('work_get_active', { username, _ts: Date.now() });
+
+    // รองรับหลายคีย์ที่แบ็กเอนด์อาจคืนมา
+    const w = res?.work || res?.active_work || null;
+
+    // เงื่อนไข: มีเช็คอินแล้ว และ "ยังไม่เช็คเอาต์"
+    const isCheckedIn   = !!(w?.is_checked_in || w?.status === 'checked');
+    const notCheckedOut = !(w?.is_checked_out || w?.checkout_time);
+
+    if (w && isCheckedIn && notCheckedOut) {
+      return { ...res, work: w };
+    }
   }catch(_){}
   return null;
 }
+
 
 function openWorkStatusModal(data){
   const profile = data.profile || {};
@@ -1315,55 +1327,91 @@ async function onQrDetected(text){
 
   let obj = null;
   try { obj = JSON.parse(text); } catch(_) { obj = null; }
+
+  // รูปแบบไม่ถูกต้อง
   if (!obj || (!obj.w && !obj.q)) {
     setScanBusy(false);
     Toast.show('QR นี้ไม่ใช่รูปแบบที่ระบบรองรับ','error');
     return;
   }
 
-  __scanContext = { raw: text, work_id: obj.w || null, qr_id: obj.q || null, mode: 'in' };
+  __scanContext = {
+    raw: text,
+    work_id: obj.w || null,
+    qr_id: obj.q || null,
+    mode: 'in'  // ค่าเริ่มต้น
+  };
 
+  // ---------- เส้นทางหลัก: ขอพรีวิวจากเซิร์ฟเวอร์ ----------
   try {
-    const pv = await apiPost('scan_preview', { work_id: obj.w, qr_id: obj.q });
+    const pv = await apiPost('scan_preview', { work_id: obj.w, qr_id: obj.q, _ts: Date.now() });
     if (pv?.ok) {
-      __scanContext.mode = pv.mode === 'out' ? 'out' : 'in';
+      // ตัดสินใจว่าจะเป็น OUT เมื่อ:
+      // 1) เซิร์ฟเวอร์บอก mode=out หรือ
+      // 2) เคยเช็คอิน (is_checked_in/status='checked') และยังไม่เช็คเอาต์ (ไม่มี is_checked_out/checkout_time)
+      const shouldOut =
+        pv.mode === 'out' ||
+        (
+          (pv.work?.is_checked_in || pv.work?.status === 'checked') &&
+          !(pv.work?.is_checked_out || pv.work?.checkout_time)
+        );
+
+      __scanContext.mode = shouldOut ? 'out' : 'in';
+
       fillScanPreviewUI({
         fullname: pv.profile?.fullname || '-',
-        company: pv.profile?.company || pv.profile?.workplace || '-',
-        task: pv.work?.task || '-',
-        room: pv.work?.room || '-',
-        status_text: pv.status_text || (pv.mode==='out' ? 'พบการเช็คอินก่อนหน้า' : '')
+        company:  pv.profile?.company || pv.profile?.workplace || '-',
+        task:     pv.work?.task || '-',
+        room:     pv.work?.room || '-',
+        status_text: pv.status_text || (shouldOut ? 'พบการเช็คอินก่อนหน้า' : '')
       });
-      return;
+      return; // จบด้วยการเปิด modal พรีวิวแล้ว
     }
-  } catch(_) { /* fallback ต่อ */ }
+  } catch(_) {
+    // ไปเส้นทาง fallback ต่อ
+  }
 
+  // ---------- Fallback: เรียกดูทีละเอ็นด์พอยต์ ----------
   let fullname = '-', company = '-', task = '-', room = '-', wantOut = false;
+
   try{
     if (obj.w) {
-      const r = await apiPost('work_preview', { work_id: obj.w });
+      const r = await apiPost('work_preview', { work_id: obj.w, _ts: Date.now() });
       if (r?.ok) {
         fullname = r.profile?.fullname || '-';
         company  = r.profile?.company || r.profile?.workplace || '-';
         task     = r.work?.task || '-';
         room     = r.work?.room || '-';
-        wantOut  = !!r.work?.is_checked_in;
+
+        wantOut  = !!(r.work?.is_checked_in || r.work?.status === 'checked')
+                   && !(r.work?.is_checked_out || r.work?.checkout_time);
       }
     } else if (obj.q) {
-      const r = await apiPost('profile_by_qr', { qr_id: obj.q });
+      const r = await apiPost('profile_by_qr', { qr_id: obj.q, _ts: Date.now() });
       if (r?.ok) {
         fullname = r.profile?.fullname || '-';
         company  = r.profile?.company || r.profile?.workplace || '-';
         task     = r.latest_work?.task || '-';
         room     = r.latest_work?.room || '-';
-        wantOut  = !!r.latest_work?.is_checked_in;
+
+        wantOut  = !!(r.latest_work?.is_checked_in || r.latest_work?.status === 'checked')
+                   && !(r.latest_work?.is_checked_out || r.latest_work?.checkout_time);
       }
     }
-  }catch(_){}
+  }catch(_){ /* เงียบไว้แล้วไปต่อ */ }
 
   __scanContext.mode = wantOut ? 'out' : 'in';
-  fillScanPreviewUI({ fullname, company, task, room, status_text: wantOut ? 'พบการเช็คอินก่อนหน้า' : '' });
+
+  // แสดงหน้าพรีวิว (จะเปิด modal และปลด busy ภายในฟังก์ชัน)
+  fillScanPreviewUI({
+    fullname,
+    company,
+    task,
+    room,
+    status_text: wantOut ? 'พบการเช็คอินก่อนหน้า' : ''
+  });
 }
+
 
 /* เปิด/หยุดกล้อง */
 $('#btnOpenCamera')?.addEventListener('click', startScanner);
