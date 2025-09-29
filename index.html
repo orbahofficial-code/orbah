@@ -257,6 +257,9 @@
   // ====== CONFIG: ใส่ URL GAS (ลงท้าย /exec)
   const API_BASE = "https://script.google.com/macros/s/AKfycbzK9QDRUSEq5U18Pwa40TWA-f4NrGx1CR2xqtnHBRgMQ3kSP1LfaJDMZPRc4evwuww-/exec";
 
+  // ====== WATERMARK TEXT (ปรับตรงนี้ได้หากอยากเปลี่ยนในอนาคต) ======
+  const WM_TEXT = "ใช้สำหรับ รพ. เท่านั้น  กวห.รพ.ภูมิพลอดุลยเดช พอ.";
+
   const $  = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
@@ -345,8 +348,8 @@
 
   // ===== ทำลายน้ำสำหรับ "พรีวิว" (ไม่ไปแก้ไฟล์ต้นฉบับ) =====
   async function createWatermarkedPreview(file, {
-    text = 'ใช้สำหรับ รพ. เท่านั้น',
-    subtext = 'กวห.รพ.ภูมิพลอดุลยเดช พอ.',
+    text = 'CONFIDENTIAL',
+    subtext = '',
     maxW = 1200,
     opacity = 0.18,
     fontMain = 'bold 48px Sarabun, sans-serif',
@@ -382,9 +385,6 @@
     ctx.fillStyle = color;
     ctx.strokeStyle = color;
 
-    const centerX = w / 2;
-    const centerY = h / 2;
-
     const drawOne = (x, y) => {
       ctx.save();
       ctx.translate(x, y);
@@ -392,7 +392,8 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.font = fontMain;
-      ctx.fillText(text, 0, 0);
+      // ห่อข้อความยาว (รองรับไทย) ให้พอดี
+      wrapFillText(ctx, text, 0, 0, 800, 56); // maxWidth=800, lineHeight=56
       if (subtext){
         ctx.font = fontSub;
         ctx.fillText(subtext, 0, 40);
@@ -401,12 +402,11 @@
     };
 
     if (!repeat){
-      drawOne(centerX, centerY);
+      drawOne(w/2, h/2);
     } else {
-      // วาดแบบตารางเฉียง
       const step = 300; // ระยะห่างลายน้ำ
-      for (let y = margin; y < h + step; y += step){
-        for (let x = margin; x < w + step; x += step){
+      for (let y = 40; y < h + step; y += step){
+        for (let x = 40; x < w + step; x += step){
           drawOne(x, y);
         }
       }
@@ -414,6 +414,26 @@
     ctx.restore();
 
     return canvas.toDataURL('image/jpeg', 0.9);
+  }
+
+  // ฟังก์ชันช่วยห่อข้อความภาษาไทยบนแคนวาส
+  function wrapFillText(ctx, text, x, y, maxWidth, lineHeight){
+    const words = text.split(/\s+/);
+    let line = '';
+    const lines = [];
+    for (let i = 0; i < words.length; i++){
+      const testLine = line ? (line + ' ' + words[i]) : words[i];
+      const { width } = ctx.measureText(testLine);
+      if (width > maxWidth && line){
+        lines.push(line);
+        line = words[i];
+      } else {
+        line = testLine;
+      }
+    }
+    lines.push(line);
+    const startY = y - ((lines.length - 1) * lineHeight) / 2;
+    lines.forEach((ln, idx) => ctx.fillText(ln, x, startY + idx * lineHeight));
   }
 
   function goProfile(){ window.location.href = 'profile.html'; }
@@ -549,8 +569,8 @@
         if(!file.type.startsWith('image/')){ Toast.show('ไฟล์ต้องเป็นรูปภาพเท่านั้น','error'); inputEl.value=''; return; }
 
         const wmDataURL = await createWatermarkedPreview(file, {
-          text: 'REGISTER',
-          subtext: new Date().toLocaleString(),
+          text: WM_TEXT,      // <<< ใช้ข้อความลายน้ำที่กำหนด
+          subtext: '',        // ไม่มีข้อความรอง
           opacity: 0.18,
           rotateDeg: -30,
           repeat: true
@@ -642,6 +662,7 @@
 
   });
 </script>
+
 
 
 </body>
