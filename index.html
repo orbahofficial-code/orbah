@@ -210,15 +210,15 @@
         <div class="md:col-span-2">
           <label class="text-sm">อัปโหลดรูปถ่ายบัตรประชาชน (JPG/PNG)</label>
           <input id="idcard_input" type="file" accept="image/*" class="w-full border rounded-lg px-3 py-2" name="idcard_img" required>
-          <div class="mt-2 preview-box"><img id="idcard_preview" alt="พรีวิวบัตรประชาชน"></div>
-          <p class="preview-note">* ระบบจะใส่ลายน้ำ “กวห.รพ.ภูมิพลอดุลยเดช พอ.” ลงบนภาพก่อนบันทึก</p>
+          <div class="mt-2 preview-box"><img id="idcard_preview" alt="แสดงภาพบัตรประชาชน"></div>
+          <p class="preview-note">* ระบบจะใส่ลายน้ำ “กวห.รพ.ภูมิพลอดุลยเดช พอ.” เพื่อความปลอดภัย</p>
         </div>
         
         <!-- ภาพหน้าตรง (พรีวิว ไม่มีลายน้ำ) -->
         <div class="md:col-span-2">
           <label class="text-sm">อัปโหลดภาพถ่ายหน้าตรง (ไม่สวมหมวก/แว่น)</label>
           <input id="portrait_input" type="file" accept="image/*" class="w-full border rounded-lg px-3 py-2" name="portrait_img" required>
-          <div class="mt-2 preview-box"><img id="portrait_preview" alt="พรีวิวหน้าตรง"></div>
+          <div class="mt-2 preview-box"><img id="portrait_preview" alt="แสดงภาพถ่ายหน้าตรง"></div>
         </div>
 
         <div class="md:col-span-2 flex gap-2 justify-end">
@@ -263,21 +263,23 @@
   const Toast = {
     show(msg, type='info', timeout=3000){
       const wrap = $('#toast');
+      if(!wrap){ alert(msg); return; }
       const item = document.createElement('div');
       item.className = `toast-item ${type}`;
       item.innerHTML = `
         <div><i class="fa-solid ${type==='success'?'fa-circle-check':type==='error'?'fa-circle-xmark':'fa-circle-info'} mt-1"></i></div>
         <div class="text-sm leading-snug">${msg}</div>`;
       wrap.appendChild(item);
-      setTimeout(()=>{ item.style.opacity='0'; item.style.transform='translateY(-6px)'; }, timeout-350);
-      setTimeout(()=> item.remove(), timeout);
+      const t = Math.max(600, timeout);
+      setTimeout(()=>{ item.style.opacity='0'; item.style.transform='translateY(-6px)'; }, t-350);
+      setTimeout(()=> item.remove(), t);
     }
   };
 
   function setLoading(btn, isLoading, text='กำลังดำเนินการ...'){
     if(!btn) return;
     if(isLoading){
-      btn.dataset._text = btn.textContent;
+      if(!btn.dataset._text){ btn.dataset._text = btn.innerHTML || btn.textContent || ''; }
       btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i>${text}`;
       btn.disabled = true;
     }else{
@@ -307,24 +309,19 @@
     if(!anyOpen){ document.body.classList.remove('modal-open'); }
   }
 
-  // ========= NEW: เคลียร์ฟอร์ม + ไฟล์ + รูปพรีวิว =========
+  // ========= เคลียร์ฟอร์ม + ไฟล์ + รูปพรีวิว =========
   function clearForm(formOrSelector){
     const form = typeof formOrSelector === 'string' ? $(formOrSelector) : formOrSelector;
     if(!form) return;
-    // รีเซ็ตค่าช่อง input/select/textarea ทั้งหมด
     form.reset();
-    // ล้างค่า file input
     form.querySelectorAll('input[type="file"]').forEach(i => i.value = '');
-    // ล้างรูปพรีวิว (รองรับทั้ง data-preview และ id ที่ใช้ในโปรเจ็กต์)
     form.querySelectorAll('img[data-preview], #idcard_preview, #portrait_preview').forEach(img=>{
       img.removeAttribute('src');
       img.alt = '';
     });
   }
-  // ตัวแปรพรีวิว (ถ้ามีฟีเจอร์พรีวิว/ลายน้ำ)
-  let idcardPreviewDataURL = null;
-  let portraitPreviewDataURL = null;
 
+  // ===== Utilities: File -> base64 / dataURL =====
   function fileToBase64(file){
     return new Promise((resolve, reject)=>{
       const fr = new FileReader();
@@ -337,8 +334,93 @@
       fr.readAsDataURL(file);
     });
   }
+  function fileToDataURL(file){
+    return new Promise((resolve, reject)=>{
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result);
+      fr.onerror = reject;
+      fr.readAsDataURL(file);
+    });
+  }
+
+  // ===== ทำลายน้ำสำหรับ "พรีวิว" (ไม่ไปแก้ไฟล์ต้นฉบับ) =====
+  async function createWatermarkedPreview(file, {
+    text = 'CONFIDENTIAL',
+    subtext = '',
+    maxW = 1200,
+    opacity = 0.18,
+    fontMain = 'bold 48px Sarabun, sans-serif',
+    fontSub = '24px Sarabun, sans-serif',
+    color = '#000000',
+    rotateDeg = -30,
+    margin = 40,
+    repeat = true
+  } = {}){
+    const dataURL = await fileToDataURL(file);
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    const loaded = new Promise(res => { img.onload = res; });
+    img.src = dataURL;
+    await loaded;
+
+    // ย่อให้ไม่เกิน maxW
+    const scale = img.width > maxW ? (maxW / img.width) : 1;
+    const w = Math.round(img.width * scale);
+    const h = Math.round(img.height * scale);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+
+    // วาดรูปพื้น
+    ctx.drawImage(img, 0, 0, w, h);
+
+    // วาดลายน้ำ
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.fillStyle = color;
+    ctx.strokeStyle = color;
+
+    const centerX = w / 2;
+    const centerY = h / 2;
+
+    const drawOne = (x, y) => {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rotateDeg * Math.PI / 180);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = fontMain;
+      ctx.fillText(text, 0, 0);
+      if (subtext){
+        ctx.font = fontSub;
+        ctx.fillText(subtext, 0, 40);
+      }
+      ctx.restore();
+    };
+
+    if (!repeat){
+      drawOne(centerX, centerY);
+    } else {
+      // วาดแบบตารางเฉียง
+      const step = 300; // ระยะห่างลายน้ำ
+      for (let y = margin; y < h + step; y += step){
+        for (let x = margin; x < w + step; x += step){
+          drawOne(x, y);
+        }
+      }
+    }
+    ctx.restore();
+
+    return canvas.toDataURL('image/jpeg', 0.9);
+  }
 
   function goProfile(){ window.location.href = 'profile.html'; }
+
+  // เก็บ DataURL พรีวิวเผื่อใช้ต่อ (ถ้าต้องการ)
+  let idcardPreviewDataURL = null;
+  let portraitPreviewDataURL = null;
 
   document.addEventListener('DOMContentLoaded', () => {
     const loginForm = $('#loginForm');
@@ -352,10 +434,10 @@
     const welcomeMessage = $('#welcomeMessage');
     const closeModalBtn = $('#closeModal');
 
-    // Quick buttons
-    $('#openInternalReg').addEventListener('click', ()=> openModal('internalModal'));
-    $('#openExternalReg').addEventListener('click', ()=> openModal('externalModal'));
-    $('#openForgot').addEventListener('click', ()=> openModal('forgotModal'));
+    // Quick buttons (กัน null)
+    $('#openInternalReg') && $('#openInternalReg').addEventListener('click', ()=> openModal('internalModal'));
+    $('#openExternalReg') && $('#openExternalReg').addEventListener('click', ()=> openModal('externalModal'));
+    $('#openForgot')      && $('#openForgot').addEventListener('click', ()=> openModal('forgotModal'));
 
     // Close modal buttons
     $$('[data-close]').forEach(btn=>{
@@ -363,58 +445,65 @@
     });
 
     // Toggle password visibility
-    togglePasswordBtn.addEventListener('click', () => {
-      const isPwd = passwordInput.type === 'password';
-      passwordInput.type = isPwd ? 'text' : 'password';
-      togglePasswordBtn.innerHTML = `<i class="fa-regular ${isPwd? 'fa-eye-slash':'fa-eye'}"></i>`;
-    });
+    if (togglePasswordBtn && passwordInput){
+      togglePasswordBtn.addEventListener('click', () => {
+        const isPwd = passwordInput.type === 'password';
+        passwordInput.type = isPwd ? 'text' : 'password';
+        togglePasswordBtn.innerHTML = `<i class="fa-regular ${isPwd? 'fa-eye-slash':'fa-eye'}"></i>`;
+      });
+    }
 
     // Load remembered username
     const savedUsername = localStorage.getItem('login_username');
-    if(savedUsername){ usernameInput.value = savedUsername; }
+    if(savedUsername && usernameInput){ usernameInput.value = savedUsername; }
 
     // ===== Login =====
-    loginForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const username = usernameInput.value.trim();
-      const password = passwordInput.value;
-      if(!username || !password){ Toast.show('กรุณากรอกชื่อผู้ใช้งานและรหัสผ่าน','error'); return; }
+    if (loginForm){
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = (usernameInput?.value || '').trim();
+        const password = passwordInput?.value || '';
+        if(!username || !password){ Toast.show('กรุณากรอกชื่อผู้ใช้งานและรหัสผ่าน','error'); return; }
 
-      setLoading(loginButton, true, 'กำลังตรวจสอบ...');
-      try{
-        const res = await fetch(`${API_BASE}?route=login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ username, password })
-        });
-        const data = await res.json().catch(()=> ({}));
-        if(res.ok && data?.ok){
-          if(rememberCheckbox.checked){ localStorage.setItem('login_username', username); }
-          else{ localStorage.removeItem('login_username'); }
+        setLoading(loginButton, true, 'กำลังตรวจสอบ...');
+        try{
+          const res = await fetch(`${API_BASE}?route=login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ username, password })
+          });
+          const data = await res.json().catch(()=> ({}));
+          if(res.ok && data?.ok){
+            if(rememberCheckbox?.checked){ localStorage.setItem('login_username', username); }
+            else{ localStorage.removeItem('login_username'); }
 
-          localStorage.setItem('auth_token', data.token || '');
-          localStorage.setItem('userRole', data.role || '');
-          localStorage.setItem('username', username);
-          localStorage.setItem('fullname', data.fullname || '');
+            localStorage.setItem('auth_token', data.token || '');
+            localStorage.setItem('userRole', data.role || '');
+            localStorage.setItem('username', username);
+            localStorage.setItem('fullname', data.fullname || '');
 
-          welcomeMessage.textContent = `ยินดีต้อนรับ ${data.fullname || username} (${data.roleName || ''})`;
-          openModal('successModal');
-          closeModalBtn.onclick = ()=>{ closeModal('successModal'); goProfile(); };
-        }else{
-          Toast.show(data?.message || 'เข้าสู่ระบบไม่สำเร็จ', 'error');
+            if (welcomeMessage) welcomeMessage.textContent = `ยินดีต้อนรับ ${data.fullname || username} (${data.roleName || ''})`;
+            openModal('successModal');
+            if (closeModalBtn){
+              closeModalBtn.onclick = ()=>{ closeModal('successModal'); goProfile(); };
+            }
+          }else{
+            Toast.show(data?.message || 'เข้าสู่ระบบไม่สำเร็จ', 'error');
+          }
+        }catch(err){
+          console.error(err);
+          Toast.show('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่', 'error');
+        }finally{
+          setLoading(loginButton, false);
         }
-      }catch(err){
-        console.error(err);
-        Toast.show('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่', 'error');
-      }finally{
-        setLoading(loginButton, false);
-      }
-    });
+      });
+    }
 
     // ===== Register Internal =====
-    $('#btnInternalSubmit').addEventListener('click', async (e)=>{
+    $('#btnInternalSubmit')?.addEventListener('click', async (e)=>{
       e.preventDefault();
       const f = $('#internalForm');
+      if(!f){ Toast.show('ไม่พบฟอร์มลงทะเบียนภายใน','error'); return; }
       const form = Object.fromEntries(new FormData(f).entries());
 
       if(form.password !== form.confirm){
@@ -435,7 +524,6 @@
         const data = await res.json().catch(()=> ({}));
         if(res.ok && data?.ok){
           Toast.show('ลงทะเบียนสำเร็จ: บัญชีอยู่ระหว่างรอผู้ดูแลระบบอนุมัติ','success');
-          // NEW: เคลียร์ฟอร์มหลังบันทึก
           clearForm(f);
           closeModal('internalModal');
         }else{
@@ -448,9 +536,42 @@
     });
 
     // ===== Register External (base64 images) =====
-    $('#btnExternalSubmit').addEventListener('click', async (e)=>{
+    // --- พรีวิว + ลายน้ำ ---
+    const idInput = $('#externalForm [name="idcard_img"]');
+    const faceInput = $('#externalForm [name="portrait_img"]');
+    const idPreview = $('#idcard_preview');
+    const facePreview = $('#portrait_preview');
+
+    async function handlePreview(inputEl, previewImgEl, setVar){
+      try{
+        const file = inputEl?.files?.[0];
+        if(!file){ previewImgEl?.removeAttribute('src'); setVar(null); return; }
+        if(!file.type.startsWith('image/')){ Toast.show('ไฟล์ต้องเป็นรูปภาพเท่านั้น','error'); inputEl.value=''; return; }
+
+        const wmDataURL = await createWatermarkedPreview(file, {
+          text: 'REGISTER',
+          subtext: new Date().toLocaleString(),
+          opacity: 0.18,
+          rotateDeg: -30,
+          repeat: true
+        });
+        if (previewImgEl){ previewImgEl.src = wmDataURL; previewImgEl.alt = 'Preview'; }
+        setVar(wmDataURL);
+      }catch(err){
+        console.error(err);
+        Toast.show('ไม่สามารถพรีวิวรูปได้','error');
+      }
+    }
+
+    idInput && idPreview && idInput.addEventListener('change', ()=> handlePreview(idInput, idPreview, v=> idcardPreviewDataURL = v));
+    faceInput && facePreview && faceInput.addEventListener('change', ()=> handlePreview(faceInput, facePreview, v=> portraitPreviewDataURL = v));
+
+    // --- ส่งลงทะเบียนภายนอก ---
+    $('#btnExternalSubmit')?.addEventListener('click', async (e)=>{
       e.preventDefault();
       const f = $('#externalForm');
+      if(!f){ Toast.show('ไม่พบฟอร์มลงทะเบียนภายนอก','error'); return; }
+
       const fd = new FormData(f);
       const form = Object.fromEntries(fd.entries());
       if(form.password !== form.confirm){ Toast.show('รหัสผ่านไม่ตรงกัน','error'); return; }
@@ -464,6 +585,7 @@
       const btn = e.currentTarget;
       setLoading(btn, true, 'กำลังอัปโหลด...');
       try{
+        // อัปโหลด "ไฟล์จริง" ไปเซิร์ฟเวอร์ตามเดิม (พรีวิวมีลายน้ำเฉพาะหน้าบ้าน)
         const idObj = await fileToBase64(idFile);
         const faceObj = await fileToBase64(faceFile);
         const payload = { ...form, idcard_img: idObj, portrait_img: faceObj };
@@ -476,7 +598,6 @@
         const data = await res.json().catch(()=> ({}));
         if(res.ok && data?.ok){
           Toast.show('ส่งคำขอลงทะเบียนแล้ว (รอตรวจสอบ)','success');
-          // NEW: เคลียร์ฟอร์ม + พรีวิวหลังบันทึก
           clearForm(f);
           idcardPreviewDataURL = null;
           portraitPreviewDataURL = null;
@@ -491,9 +612,10 @@
     });
 
     // ===== Forgot Password =====
-    $('#btnForgotSubmit').addEventListener('click', async (e)=>{
+    $('#btnForgotSubmit')?.addEventListener('click', async (e)=>{
       e.preventDefault();
       const f = $('#forgotForm');
+      if(!f){ Toast.show('ไม่พบฟอร์มลืมรหัสผ่าน','error'); return; }
       const form = Object.fromEntries(new FormData(f).entries());
 
       const btn = e.currentTarget;
@@ -507,7 +629,6 @@
         const data = await res.json().catch(()=> ({}));
         if(res.ok && data?.ok){
           Toast.show('ส่งคำขอแล้ว แอดมินจะตรวจสอบให้ครับ','success');
-          // NEW: เคลียร์ฟอร์มหลังบันทึก
           clearForm(f);
           closeModal('forgotModal');
         }else{
@@ -521,6 +642,7 @@
 
   });
 </script>
+
 
 </body>
 </html>
