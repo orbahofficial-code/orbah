@@ -363,8 +363,8 @@
     subtext = '',
     maxW = 1200,           // ตั้งเป็น null เพื่อใช้ขนาดเดิม
     opacity = 0.18,
-    fontMain = 'bold 48px Sarabun, sans-serif',
-    fontSub = '24px Sarabun, sans-serif',
+    fontMain = 'bold 28px Sarabun, sans-serif',
+    fontSub = '18px Sarabun, sans-serif',
     color = '#000000',
     rotateDeg = -30,
     margin = 40,
@@ -414,7 +414,7 @@
     if (!repeat){
       drawOne(w/2, h/2);
     } else {
-      const step = 300; // ระยะห่างลายน้ำ
+      const step = 400; // ระยะห่างลายน้ำ
       for (let y = margin; y < h + step; y += step){
         for (let x = margin; x < w + step; x += step){
           drawOne(x, y);
